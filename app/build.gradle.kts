@@ -41,7 +41,7 @@ dependencies {
     implementation(libs.constraintlayout)
     implementation(libs.navigation.fragment)
     implementation(libs.navigation.ui)
-    implementation("com.github.mik3y:usb-serial-for-android:3.8.0")
+    implementation(project(":usbSerialForAndroid"))
     testImplementation(libs.junit)
     androidTestImplementation(libs.ext.junit)
     androidTestImplementation(libs.espresso.core)

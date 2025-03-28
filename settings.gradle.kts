@@ -23,3 +23,5 @@ dependencyResolutionManagement {
 
 rootProject.name = "7_0Project"
 include(":app")
+
+include(":usbSerialForAndroid")

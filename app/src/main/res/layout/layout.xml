@@ -1,143 +1,315 @@
 <?xml version="1.0" encoding="utf-8"?>
 <LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
     xmlns:tools="http://schemas.android.com/tools"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
     android:background="#1D1B1B"
-    android:orientation="horizontal"
+    android:baselineAligned="false"
+    android:keepScreenOn="true"
+    android:orientation="vertical"
     android:visibility="visible"
     tools:visibility="visible">
 
     <LinearLayout
         android:layout_width="match_parent"
+        android:layout_height="136dp"
+        android:layout_weight="2"
+        android:orientation="horizontal"
+        android:visibility="gone">
+
+        <TextView
+            android:id="@+id/label1"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:text="@string/example"
+            android:textAppearance="@style/TextAppearance.AppCompat.Large"
+            android:textColor="#673AB7"
+            android:textSize="30sp" />
+
+        <TextView
+            android:id="@+id/label2"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:text="TextView"
+            android:textColor="#FF0000"
+            android:textSize="30sp" />
+
+        <TextView
+            android:id="@+id/label3"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:text="TextView"
+            android:textColor="#4CAF50"
+            android:textSize="30sp" />
+
+        <TextView
+            android:id="@+id/label4"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:text="TextView"
+            android:textColor="#EA2AFF"
+            android:textSize="30sp" />
+
+        <Button
+            android:id="@+id/serial_button"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:text="@string/serial_button"
+            android:textSize="34sp" />
+    </LinearLayout>
+
+    <Space
+        android:layout_width="fill_parent"
+        android:layout_height="50dp"
+        android:baselineAligned="false"
+        tools:visibility="gone" />
+
+    <LinearLayout
+        android:layout_width="match_parent"
         android:layout_height="match_parent"
-        android:layout_weight="1"
-        android:orientation="vertical">
+        android:layout_weight="2"
+        android:baselineAligned="false"
+        android:orientation="horizontal">
 
         <LinearLayout
             android:layout_width="match_parent"
-            android:layout_height="136dp"
-            android:layout_weight="1"
-            android:orientation="horizontal">
+            android:layout_height="fill_parent"
+            android:layout_weight="8"
+            android:baselineAligned="false"
+            android:orientation="vertical">
 
-            <TextView
-                android:id="@+id/label1"
+            <LinearLayout
                 android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:layout_weight="1"
-                android:text="@string/example"
-                android:textAppearance="@style/TextAppearance.AppCompat.Large"
-                android:textColor="#673AB7"
-                android:textSize="30sp" />
-
-            <TextView
-                android:id="@+id/label2"
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:layout_weight="1"
-                android:text="TextView"
-                android:textColor="#FF0000"
-                android:textSize="30sp" />
-
-            <TextView
-                android:id="@+id/label3"
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:layout_weight="1"
-                android:text="TextView"
-                android:textColor="#4CAF50"
-                android:textSize="30sp" />
-
-            <TextView
-                android:id="@+id/label4"
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:layout_weight="1"
-                android:text="TextView"
-                android:textColor="#EA2AFF"
-                android:textSize="30sp" />
-
-            <Button
-                android:id="@+id/serial_button"
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:layout_weight="1"
-                android:text="@string/serial_button"
-                android:textSize="34sp" />
-        </LinearLayout>
-
-        <Space
-            android:layout_width="fill_parent"
-            android:layout_height="50dp"
-            tools:visibility="gone" />
-
-        <TextView
-            android:id="@+id/label5"
-            android:layout_width="fill_parent"
-            android:layout_height="50dp"
-            android:layout_weight="1"
-            android:text="TextView"
-            android:textColor="#FFFFFF" />
-
-        <TableLayout
-            android:layout_width="match_parent"
-            android:layout_height="400dp"
-            android:layout_weight="1">
-
-            <TableRow
-                android:layout_width="match_parent"
-                android:layout_height="match_parent">
-
-                <TextView
-                    android:id="@+id/speedLabel"
-                    android:layout_width="0dp"
-                    android:layout_height="match_parent"
-                    android:layout_weight="1"
-                    android:fontFamily="sans-serif-black"
-                    android:text="Speed"
-                    android:textAlignment="center"
-                    android:textColor="#34CA23"
-                    android:textSize="60sp"
-                    android:typeface="monospace" />
-
-                <TextView
-                    android:id="@+id/rpmLabel"
-                    android:layout_width="0dp"
-                    android:layout_height="match_parent"
-                    android:layout_weight="1"
-                    android:fontFamily="sans-serif-black"
-                    android:text="RPM"
-                    android:textAlignment="center"
-                    android:textColor="#34CA23"
-                    android:textSize="60sp"
-                    android:typeface="monospace" />
-
-            </TableRow>
-
-            <TableRow
-                android:layout_width="match_parent"
-                android:layout_height="match_parent">
-
-                <TextView
-                    android:id="@+id/speedNumber"
-                    android:layout_width="0dp"
-                    android:layout_height="250dp"
-                    android:layout_weight="1"
-                    android:fontFamily="sans-serif-black"
-                    android:text="69"
-                    android:textAlignment="center"
-                    android:textAllCaps="false"
-                    android:textAppearance="@style/TextAppearance.AppCompat.Large"
-                    android:textColor="#34CA23"
-                    android:textSize="160sp"
-                    android:textStyle="bold"
-                    android:typeface="monospace" />
+                android:layout_height="match_parent"
+                android:layout_weight="25"
+                android:orientation="horizontal"
+                tools:ignore="DisableBaselineAlignment">
 
                 <LinearLayout
-                    android:layout_width="0dp"
+                    android:layout_width="fill_parent"
                     android:layout_height="match_parent"
                     android:layout_weight="1"
                     android:orientation="vertical">
+
+                    <ImageView
+                        android:id="@+id/batteryWarningImage"
+                        android:layout_width="160dp"
+                        android:layout_height="80dp"
+                        android:layout_gravity="center"
+                        android:layout_weight="0"
+                        android:alpha="0.2"
+                        android:foreground="@android:drawable/ic_lock_idle_low_battery"
+                        android:foregroundTint="#FFEB3B"
+                        android:scaleX="0.5"
+                        android:scaleY="0.95" />
+
+                    <TextView
+                        android:id="@+id/batteryWarningLabel"
+                        android:layout_width="fill_parent"
+                        android:layout_height="match_parent"
+                        android:layout_weight="0"
+                        android:alpha="0.2"
+                        android:fontFamily="sans-serif-black"
+                        android:gravity="center"
+                        android:scaleY="1.2"
+                        android:text="Voltage"
+                        android:textAlignment="center"
+                        android:textColor="#FFEB3B"
+                        android:textSize="30sp"
+                        android:typeface="monospace" />
+
+                </LinearLayout>
+
+                <LinearLayout
+                    android:layout_width="fill_parent"
+                    android:layout_height="match_parent"
+                    android:layout_weight="1"
+                    android:orientation="vertical">
+
+                    <ImageView
+                        android:id="@+id/fuelPressureImage"
+                        android:layout_width="160dp"
+                        android:layout_height="80dp"
+                        android:layout_gravity="center"
+                        android:layout_weight="0"
+                        android:alpha="0.2"
+                        android:foreground="@drawable/ic_fas_flask"
+                        android:foregroundTint="#FFEB3B"
+                        android:scaleX="0.4"
+                        android:scaleY="0.90" />
+
+                    <TextView
+                        android:id="@+id/fuelPressureWarningLabel"
+                        android:layout_width="fill_parent"
+                        android:layout_height="match_parent"
+                        android:layout_weight="0"
+                        android:alpha="0.2"
+                        android:fontFamily="sans-serif-black"
+                        android:gravity="center"
+                        android:scaleY="1.2"
+                        android:text="Fuel Pressure"
+                        android:textAlignment="center"
+                        android:textColor="#FFEB3B"
+                        android:textSize="26sp"
+                        android:typeface="monospace" />
+
+                </LinearLayout>
+
+                <LinearLayout
+                    android:layout_width="fill_parent"
+                    android:layout_height="match_parent"
+                    android:layout_weight="1"
+                    android:orientation="vertical">
+
+                    <ImageView
+                        android:id="@+id/coolantImage"
+                        android:layout_width="160dp"
+                        android:layout_height="80dp"
+                        android:layout_gravity="center"
+                        android:layout_weight="0"
+                        android:alpha="0.2"
+                        android:foreground="@drawable/ic_fas_thermometer_full"
+                        android:foregroundTint="#FFEB3B"
+                        android:scaleX="0.3"
+                        android:scaleY="0.95" />
+
+                    <TextView
+                        android:id="@+id/coolantWarningLabel"
+                        android:layout_width="fill_parent"
+                        android:layout_height="match_parent"
+                        android:layout_weight="0"
+                        android:alpha="0.2"
+                        android:fontFamily="sans-serif-black"
+                        android:gravity="center"
+                        android:scaleY="1.2"
+                        android:text="Coolant"
+                        android:textAlignment="center"
+                        android:textColor="#FFEB3B"
+                        android:textSize="26sp"
+                        android:typeface="monospace" />
+
+                </LinearLayout>
+
+                <LinearLayout
+                    android:layout_width="fill_parent"
+                    android:layout_height="match_parent"
+                    android:layout_weight="1"
+                    android:orientation="vertical">
+
+                    <ImageView
+                        android:id="@+id/engineSpeedImage"
+                        android:layout_width="160dp"
+                        android:layout_height="80dp"
+                        android:layout_gravity="center"
+                        android:layout_weight="0"
+                        android:alpha="0.2"
+                        android:foreground="@drawable/ic_fab_steam"
+                        android:foregroundTint="#FFEB3B"
+                        android:scaleX="0.46"
+                        android:scaleY="0.95" />
+
+                    <TextView
+                        android:id="@+id/engineSpeedLabel"
+                        android:layout_width="fill_parent"
+                        android:layout_height="match_parent"
+                        android:layout_weight="0"
+                        android:alpha="0.2"
+                        android:baselineAligned="false"
+                        android:fontFamily="sans-serif-black"
+                        android:gravity="center"
+                        android:scaleY="1.2"
+                        android:text="Engine Speed"
+                        android:textAlignment="center"
+                        android:textColor="#FFEB3B"
+                        android:textSize="24sp"
+                        android:typeface="monospace" />
+
+                </LinearLayout>
+
+            </LinearLayout>
+
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="fill_parent"
+                android:layout_weight="8"
+                android:baselineAligned="false"
+                android:orientation="horizontal">
+
+                <LinearLayout
+                    android:layout_width="fill_parent"
+                    android:layout_height="match_parent"
+                    android:layout_weight="40"
+                    android:orientation="vertical">
+
+                    <Space
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:layout_weight="80" />
+
+                    <TextView
+                        android:id="@+id/speedLabel"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:layout_weight="10"
+                        android:fontFamily="sans-serif-black"
+                        android:scaleY="1.2"
+                        android:text="Speed"
+                        android:textAlignment="center"
+                        android:textColor="#00FF00"
+                        android:textSize="60sp"
+                        android:typeface="monospace" />
+
+                    <TextView
+                        android:id="@+id/speedNumber"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:layout_weight="90"
+                        android:fontFamily="sans-serif-black"
+                        android:scaleY="1.2"
+                        android:text="-1"
+                        android:textAlignment="center"
+                        android:textAllCaps="false"
+                        android:textAppearance="@style/TextAppearance.AppCompat.Large"
+                        android:textColor="#00FF00"
+                        android:textSize="160sp"
+                        android:textStyle="bold"
+                        android:typeface="monospace" />
+
+                    <Space
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:layout_weight="40" />
+                </LinearLayout>
+
+                <LinearLayout
+                    android:layout_width="fill_parent"
+                    android:layout_height="match_parent"
+                    android:layout_weight="40"
+                    android:orientation="vertical">
+
+                    <Space
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:layout_weight="20" />
+
+                    <TextView
+                        android:id="@+id/rpmLabel"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:layout_weight="0"
+                        android:fontFamily="sans-serif-black"
+                        android:scaleY="1.2"
+                        android:text="RPM"
+                        android:textAlignment="center"
+                        android:textColor="#00FF00"
+                        android:textSize="60sp"
+                        android:typeface="monospace" />
 
                     <Space
                         android:layout_width="match_parent"
@@ -146,35 +318,265 @@
                     <TextView
                         android:id="@+id/rpmNumber"
                         android:layout_width="fill_parent"
-                        android:layout_height="180dp"
+                        android:layout_height="wrap_content"
                         android:fontFamily="sans-serif-black"
-                        android:text="1000"
+                        android:scaleY="1.2"
+                        android:text="-1"
                         android:textAlignment="center"
                         android:textAllCaps="false"
                         android:textAppearance="@style/TextAppearance.AppCompat.Large"
-                        android:textColor="#34CA23"
+                        android:textColor="#00FF00"
                         android:textSize="120sp"
                         android:textStyle="bold"
                         android:typeface="monospace" />
 
+                    <LinearLayout
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:layout_weight="10"
+                        android:orientation="horizontal">
+
+                        <Button
+                            android:id="@+id/button3"
+                            android:layout_width="wrap_content"
+                            android:layout_height="match_parent"
+                            android:layout_weight="1"
+                            android:backgroundTint="#F44336"
+                            android:fontFamily="sans-serif-black"
+                            android:insetLeft="10dp"
+                            android:insetTop="10dp"
+                            android:insetRight="10dp"
+                            android:insetBottom="4dp"
+                            android:scaleX="0.9"
+                            android:text="Starter"
+                            android:textColor="#EFF4E9"
+                            android:textSize="26sp"
+                            android:typeface="monospace" />
+
+                        <Button
+                            android:id="@+id/button2"
+                            android:layout_width="wrap_content"
+                            android:layout_height="match_parent"
+                            android:layout_weight="1"
+                            android:backgroundTint="#F44336"
+                            android:fontFamily="sans-serif-black"
+                            android:insetLeft="10dp"
+                            android:insetTop="10dp"
+                            android:insetRight="10dp"
+                            android:insetBottom="4dp"
+                            android:scaleX="0.9"
+                            android:text="Engine"
+                            android:textSize="26sp"
+                            android:typeface="monospace" />
+                    </LinearLayout>
+
+                    <TextView
+                        android:id="@+id/label5"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:layout_weight="40"
+                        android:textColor="#FFFFFF"
+                        android:visibility="gone" />
+
+                    <Space
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:layout_weight="40"
+                        android:visibility="gone" />
+
                 </LinearLayout>
 
-            </TableRow>
+            </LinearLayout>
+        </LinearLayout>
 
-        </TableLayout>
+        <LinearLayout
+            android:layout_width="fill_parent"
+            android:layout_height="match_parent"
+            android:layout_weight="50"
+            android:orientation="vertical"
+            android:outlineProvider="paddedBounds">
+
+            <Space
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_weight="50" />
+
+            <TextView
+                android:id="@+id/voltageLabel"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_weight="40"
+                android:fontFamily="sans-serif-black"
+                android:scaleY="1.2"
+                android:text="Battery"
+                android:textAlignment="center"
+                android:textColor="#00FF00"
+                android:textSize="30sp"
+                android:typeface="monospace" />
+
+            <TextView
+                android:id="@+id/voltageNumber"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_weight="80"
+                android:fontFamily="sans-serif-black"
+                android:scaleY="1.2"
+                android:text="-1 V"
+                android:textAlignment="center"
+                android:textColor="#00FF00"
+                android:textSize="40sp"
+                android:typeface="monospace" />
+
+            <TextView
+                android:id="@+id/fuelPressureLabel"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_weight="40"
+                android:fontFamily="sans-serif-black"
+                android:scaleY="1.2"
+                android:text="Fuel Pressure"
+                android:textAlignment="center"
+                android:textColor="#00FF00"
+                android:textSize="30sp"
+                android:typeface="monospace" />
+
+            <TextView
+                android:id="@+id/fuelPressureNumber"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_weight="80"
+                android:fontFamily="sans-serif-black"
+                android:scaleY="1.2"
+                android:text="-1 kPa"
+                android:textAlignment="center"
+                android:textColor="#00FF00"
+                android:textSize="36sp"
+                android:typeface="monospace" />
+
+            <TextView
+                android:id="@+id/lambdaLabel"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_weight="40"
+                android:fontFamily="sans-serif-black"
+                android:scaleY="1.2"
+                android:text="lambda"
+                android:textAlignment="center"
+                android:textColor="#00FF00"
+                android:textSize="30sp"
+                android:typeface="monospace" />
+
+            <TextView
+                android:id="@+id/lambdaNumber"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_weight="80"
+                android:fontFamily="sans-serif-black"
+                android:scaleY="1.2"
+                android:text="-1"
+                android:textAlignment="center"
+                android:textColor="#00FF00"
+                android:textSize="40sp"
+                android:typeface="monospace" />
+
+            <TextView
+                android:id="@+id/coolantTempLabel"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_weight="40"
+                android:fontFamily="sans-serif-black"
+                android:scaleY="1.2"
+                android:text="Coolant"
+                android:textAlignment="center"
+                android:textColor="#00FF00"
+                android:textSize="30sp"
+                android:typeface="monospace" />
+
+            <TextView
+                android:id="@+id/coolantTempNumber"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_weight="80"
+                android:fontFamily="sans-serif-black"
+                android:scaleY="1.2"
+                android:text="-1 C"
+                android:textAlignment="center"
+                android:textColor="#00FF00"
+                android:textSize="40sp"
+                android:typeface="monospace" />
+        </LinearLayout>
+
+    </LinearLayout>
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="80dp"
+        android:layout_weight="1"
+        android:orientation="horizontal">
 
         <ProgressBar
             android:id="@+id/redlineIndicator"
             style="?android:attr/progressBarStyleHorizontal"
             android:layout_width="match_parent"
-            android:layout_height="100dp"
+            android:layout_height="40dp"
             android:layout_weight="1"
             android:max="300"
             android:progress="150"
-            android:progressTint="#048E04"
-            android:scaleX="0.85"
+            android:progressTint="#0BCA0B"
+            android:scaleX="0.9"
             android:scaleY="8" />
 
+        <TextView
+            android:id="@+id/burnOrCoast"
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
+            android:layout_weight="8"
+            android:fontFamily="sans-serif-black"
+            android:scaleY="1.2"
+            android:text="Burn!"
+            android:textAlignment="textStart"
+            android:textColor="#FF1200"
+            android:textSize="30dp"
+            android:typeface="monospace" />
+
+    </LinearLayout>
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="horizontal">
+
+        <TextView
+            android:id="@+id/errorNotif"
+            android:layout_width="wrap_content"
+            android:layout_height="match_parent"
+            android:alpha="0.4"
+            android:gravity="center"
+            android:text="E!"
+            android:textColor="#FF0000"
+            android:textSize="20sp" />
+
+        <ProgressBar
+            android:id="@+id/throttlePositionBar"
+            style="?android:attr/progressBarStyleHorizontal"
+            android:layout_width="match_parent"
+            android:layout_height="40dp"
+            android:layout_weight="10"
+            android:max="100"
+            android:progress="50"
+            android:progressTint="#FFC107"
+            android:scaleX="0.87"
+            android:scaleY="5" />
+
+        <TextView
+            android:id="@+id/messageCount"
+            android:layout_width="20dp"
+            android:layout_height="match_parent"
+            android:layout_weight="1"
+            android:gravity="center"
+            android:text="-1"
+            android:textColor="#FDFDFD"
+            android:textSize="20sp" />
     </LinearLayout>
 
 </LinearLayout>

@@ -4,7 +4,7 @@
     xmlns:tools="http://schemas.android.com/tools"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
-    android:background="#1D1B1B"
+    android:background="#000000"
     android:baselineAligned="false"
     android:keepScreenOn="true"
     android:orientation="vertical"
@@ -337,11 +337,11 @@
                         android:orientation="horizontal">
 
                         <Button
-                            android:id="@+id/button3"
+                            android:id="@+id/starterIndicator"
                             android:layout_width="wrap_content"
                             android:layout_height="match_parent"
                             android:layout_weight="1"
-                            android:backgroundTint="#F44336"
+                            android:backgroundTint="#FF0000"
                             android:fontFamily="sans-serif-black"
                             android:insetLeft="10dp"
                             android:insetTop="10dp"
@@ -354,7 +354,7 @@
                             android:typeface="monospace" />
 
                         <Button
-                            android:id="@+id/button2"
+                            android:id="@+id/engineIndicator"
                             android:layout_width="wrap_content"
                             android:layout_height="match_parent"
                             android:layout_weight="1"
@@ -399,7 +399,7 @@
             <Space
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:layout_weight="50" />
+                android:layout_weight="30" />
 
             <TextView
                 android:id="@+id/voltageLabel"
@@ -529,14 +529,14 @@
         <TextView
             android:id="@+id/burnOrCoast"
             android:layout_width="match_parent"
-            android:layout_height="match_parent"
+            android:layout_height="wrap_content"
             android:layout_weight="8"
             android:fontFamily="sans-serif-black"
             android:scaleY="1.2"
             android:text="Burn!"
             android:textAlignment="textStart"
             android:textColor="#FF1200"
-            android:textSize="30dp"
+            android:textSize="20dp"
             android:typeface="monospace" />
 
     </LinearLayout>
@@ -570,7 +570,7 @@
 
         <TextView
             android:id="@+id/messageCount"
-            android:layout_width="20dp"
+            android:layout_width="30dp"
             android:layout_height="match_parent"
             android:layout_weight="1"
             android:gravity="center"

@@ -2,7 +2,8 @@
 //8. switch all errors over to logcat logs
 //3. write data to a file
 //4. grab gps coords
-//1. talk with engine team about redline limits
+
+
 
 package com.example.a7_0project;
 
@@ -10,7 +11,6 @@ import android.app.AlertDialog;
 import android.app.PendingIntent;
 import android.content.Context;
 import android.content.Intent;
-import android.content.pm.PackageManager;
 import android.content.res.ColorStateList;
 import android.graphics.Color;
 import android.hardware.usb.UsbDevice;
@@ -50,7 +50,6 @@ public class MainActivity extends AppCompatActivity {
 
     private UsbManager usbManager;
 
-    private Button serialButton;
     private TextView label1;
     private TextView label2;
     private TextView label3;
@@ -65,6 +64,9 @@ public class MainActivity extends AppCompatActivity {
     private TextView FuelPressure;
     private TextView LambdaNumber;
     private TextView CoolantTemperature;
+    private Button StarterIndicator;
+    private Button EngineIndicator;
+    private TextView BurnOrCoast;
 
     private SerialInputOutputManager usbIoManager;
     private FileOutputStream logFile;
@@ -99,6 +101,9 @@ public class MainActivity extends AppCompatActivity {
         FuelPressure = findViewById(R.id.fuelPressureNumber);
         LambdaNumber = findViewById(R.id.lambdaNumber);
         CoolantTemperature = findViewById(R.id.coolantTempNumber);
+        StarterIndicator = findViewById(R.id.starterIndicator);
+        EngineIndicator = findViewById(R.id.engineIndicator);
+        BurnOrCoast = findViewById(R.id.burnOrCoast);
 
         warningObjects[0] = new WarningBundle(
                 findViewById(R.id.coolantImage),
@@ -128,44 +133,44 @@ public class MainActivity extends AppCompatActivity {
 
         // Find all available USB drivers (for the attached devices?).
         this.usbManager = (UsbManager) getSystemService(Context.USB_SERVICE);
-
-        try {
-            File appSpecificExternalDir = new File(getBaseContext().getExternalFilesDir(null), "HUD_log.txt");
-            if (appSpecificExternalDir.createNewFile()) {
-                logFile = new FileOutputStream(appSpecificExternalDir);
-                Date date = new Date(System.currentTimeMillis());
-                SimpleDateFormat formatter = new SimpleDateFormat("dd-MM-yyyy HH:mm:ss", Locale.US);
-                String rn = formatter.format(date);
-                logFile.write(String.format("Beginning of log file %s:\n", rn).getBytes());
-            }
-        }
-        catch (Exception e) {
-            Log.e("SSE", "Shared file failed: ", e);
-        }
 //
-        try {
-            LocationManager locationManager = (LocationManager) getSystemService(Context.LOCATION_SERVICE);
-            LocationListener locationListener = new MyLocationListener();
-            //If the permission check fails
-            if (ActivityCompat.checkSelfPermission(this, android.Manifest.permission.ACCESS_FINE_LOCATION) != PackageManager.PERMISSION_GRANTED && ActivityCompat.checkSelfPermission(this, android.Manifest.permission.ACCESS_COARSE_LOCATION) != PackageManager.PERMISSION_GRANTED) {
-                throw new Exception("Permission check failed :(");
-            }
-            locationManager.requestLocationUpdates(
-                    LocationManager.GPS_PROVIDER, 2000, 5, locationListener);
-        }
-        catch (Exception e) {
-            Log.e("SSE", "Location request failed: ", e);
-        }
+//        try {
+//            File appSpecificExternalDir = new File(getBaseContext().getExternalFilesDir(null), "HUD_log.txt");
+//            if (appSpecificExternalDir.createNewFile()) {
+//                logFile = new FileOutputStream(appSpecificExternalDir);
+//                Date date = new Date(System.currentTimeMillis());
+//                SimpleDateFormat formatter = new SimpleDateFormat("dd-MM-yyyy HH:mm:ss", Locale.US);
+//                String rn = formatter.format(date);
+//                logFile.write(String.format("Beginning of log file %s:\n", rn).getBytes());
+//            }
+//        }
+//        catch (Exception e) {
+//            Log.e("SSE", "Shared file failed: ", e);
+//        }
+//
+//        try {
+//            LocationManager locationManager = (LocationManager) getSystemService(Context.LOCATION_SERVICE);
+//            LocationListener locationListener = new MyLocationListener();
+//            //If the permission check fails
+//            if (ActivityCompat.checkSelfPermission(this, android.Manifest.permission.ACCESS_FINE_LOCATION) != PackageManager.PERMISSION_GRANTED && ActivityCompat.checkSelfPermission(this, android.Manifest.permission.ACCESS_COARSE_LOCATION) != PackageManager.PERMISSION_GRANTED) {
+//                throw new Exception("Permission check failed :(");
+//            }
+//            locationManager.requestLocationUpdates(
+//                    LocationManager.GPS_PROVIDER, 2000, 5, locationListener);
+//        }
+//        catch (Exception e) {
+//            Log.e("SSE", "Location request failed: ", e);
+//        }
 
-        Handler messageCountHandler = new Handler();
-        messageCountHandler.postDelayed(new Runnable() {
-            @Override
-            public void run() {
-                MessageCount.setText(String.format(Locale.ENGLISH, "%d", messageCounter));
-                messageCounter = 0;
-                messageCountHandler.postDelayed(this, 1000);
-            }
-        }, 1000);
+//        Handler messageCountHandler = new Handler();
+//        messageCountHandler.postDelayed(new Runnable() {
+//            @Override
+//            public void run() {
+//                MessageCount.setText(String.format(Locale.ENGLISH, "%d", messageCounter));
+//                messageCounter = 0;
+//                messageCountHandler.postDelayed(this, 1000);
+//            }
+//        }, 1000);
 
         auto_reconnect();
     }
@@ -205,7 +210,7 @@ public class MainActivity extends AppCompatActivity {
         //find all usb drivers
         List<UsbSerialDriver> availableDrivers = UsbSerialProber.getDefaultProber().findAllDrivers(usbManager);
         if (availableDrivers.isEmpty()) {
-            serialButton.setBackgroundColor(Color.MAGENTA);
+            //serialButton.setBackgroundColor(Color.MAGENTA);
             pushAlert("MAJOR ERROR:", "No available USB drivers? This really should not happen...", "darn");
             return false;
         }
@@ -222,7 +227,7 @@ public class MainActivity extends AppCompatActivity {
         UsbSerialDriver driver = availableDrivers.get(0);
         UsbDeviceConnection connection = usbManager.openDevice(driver.getDevice());
         if (connection == null) {
-            serialButton.setBackgroundColor(Color.RED);
+            //serialButton.setBackgroundColor(Color.RED);
             return false;
         }
 
@@ -231,7 +236,8 @@ public class MainActivity extends AppCompatActivity {
         UsbSerialPort port = driver.getPorts().get(0); // Most devices have just one port (port 0)
 
         port.open(connection);
-        port.setParameters(9600, 8, UsbSerialPort.STOPBITS_1, UsbSerialPort.PARITY_NONE);
+        //port.setParameters(9600, 8, UsbSerialPort.STOPBITS_1, UsbSerialPort.PARITY_NONE);
+        port.setParameters(115200, 8, UsbSerialPort.STOPBITS_1, UsbSerialPort.PARITY_NONE);
         SerialHandler serialHandler = new SerialHandler();
         this.usbIoManager = new SerialInputOutputManager(port, serialHandler);
         usbIoManager.start();
@@ -248,6 +254,7 @@ public class MainActivity extends AppCompatActivity {
 //                }
                 //threadLock = true;
                 try {
+                    //Log.v("SSE", "New data encountered");
                     for (byte b : data) {
                         MessageBuilderState msgb_state = currentMessageBuilder.add(b);
                         if (msgb_state == MessageBuilderState.COMPLETE) {
@@ -272,58 +279,82 @@ public class MainActivity extends AppCompatActivity {
     }
 
     private void handle_complete_message(Message message) {
-        serialButton.setBackgroundColor(Color.GREEN);
-        currentMessageBuilder = new StringMessageBuilder();
-        if (message == null) {
-            pushAlert("bad news", "someone (not naming names) (john) Called getMessage on an unfinished message object", "oopsies");
-        } else {
-            switch (message.messageID) {
-                case 0x640:
-                    int rpm = message.getContentVariable(0, 16);
-                    RpmNumber.setText(String.format(Locale.ENGLISH, "%d", rpm));
-                    break;
-                case 0x641:
-                    //convert from 0.01 lambda to 1 lambda
-                    int lambda = message.getContentVariable(16, 16) / 100;
-                    LambdaNumber.setText(String.format(Locale.ENGLISH, "%d", lambda));
-                    //convert from 0.1kPa to 1 kPa
-                    int fuelPressure = message.getContentVariable(32, 16) / 10;
-                    FuelPressure.setText(String.format(Locale.ENGLISH, "%d kPa", fuelPressure));
-                    break;
-                case 0x649:
-                    //convert from 0.1 volts to 1 volts
-                    float voltage = message.getContentVariable(40, 8) / (float) 10;
-                    VoltageNumber.setText(String.format(Locale.ENGLISH, "%.1f V", voltage));
-                    if (voltage < 10.5) {
-                        warningObjects[5].timestamp = System.currentTimeMillis();
-                    }
-                    break;
-                case 0x64c:
-                    for (int i = 0; i < 9; i++) {
-                        //LambdaNumber.setText(String.format("%d", message.getContentVariable(40 + i, 1)));
-                        if (message.getContentVariable(40 + i, 1) == 1) {
-                            //warningObjects[i].warningLabel.setTextColor(Color.BLUE);
-                            if (warningObjects[i] != null) {
-                                warningObjects[i].timestamp = System.currentTimeMillis();
+        try {
+            //serialButton.setBackgroundColor(Color.GREEN);
+            currentMessageBuilder = new StringMessageBuilder();
+            if (message == null) {
+                pushAlert("bad news", "someone (not naming names) (john) Called getMessage on an unfinished message object", "oopsies");
+            } else {
+                switch (message.messageID) {
+                    case 0x640:
+                        int rpm = message.getContentVariable(0, 16);
+                        RpmNumber.setText(String.format(Locale.ENGLISH, "%d", rpm));
+                        //engine indicator enabled if rpm is above 1600
+                        EngineIndicator.setBackgroundTintList(ColorStateList.valueOf( rpm > 1600 ? Color.GREEN :Color.RED));
+                        //starter indicator enabled if rpm is between 100 and 1500
+                        StarterIndicator.setBackgroundTintList(ColorStateList.valueOf( rpm > 100 && rpm < 1500 ? Color.GREEN :Color.RED));
+                        break;
+                    case 0x641:
+                        //convert from 0.1kPa to 1 kPa
+                        int fuelPressure = message.getContentVariable(32, 16) / 10;
+                        FuelPressure.setText(String.format(Locale.ENGLISH, "%d kPa", fuelPressure));
+                        break;
+                    case 0x649:
+                        //convert from 0.1 volts to 1 volts
+                        float voltage = message.getContentVariable(40, 8) / (float) 10;
+                        VoltageNumber.setText(String.format(Locale.ENGLISH, "%.1f V", voltage));
+                        if (voltage < 10.5) {
+                            warningObjects[5].timestamp = System.currentTimeMillis();
+                        }
+                        break;
+                    case 0x64c:
+                        for (int i = 0; i < 9; i++) {
+                            if (message.getContentVariable(40 + i, 1) == 1) {
+                                //warningObjects[i].warningLabel.setTextColor(Color.BLUE);
+                                if (warningObjects[i] != null) {
+                                    warningObjects[i].timestamp = System.currentTimeMillis();
+                                }
                             }
                         }
-                    }
-                    break;
-                case 0x118:
-                    //convert from 0.1 kmh to mph
-                    double vehicle_speed = (message.getContentVariable(16, 8) / 10.0) * 1.609344;
-                    SpeedNumber.setText(String.format(Locale.ENGLISH, "%.1f", vehicle_speed));
-                    RedlineIndicator.setProgress((int) (vehicle_speed * 10));
-                    RedlineIndicator.setProgressTintList(ColorStateList.valueOf(vehicle_speed > 26 || vehicle_speed < 10 ? Color.RED : Color.GREEN));
-                    RedlineIndicator.setProgressTintList(ColorStateList.valueOf(vehicle_speed > 24 || vehicle_speed < 13 ? Color.YELLOW : Color.GREEN));
-                    int throttlePosition = message.getContentVariable(8, 8);
-                    ThrottlePositionBar.setProgress(throttlePosition);
-                    int coolant_temp = message.getContentVariable(24, 8);
-                    CoolantTemperature.setText(String.format(Locale.ENGLISH, "%d C", coolant_temp));
-                    break;
-            }
+                        break;
+                    case 0x460:
+                        //filter for the right message based on this chart
+                        //https://www.manualslib.com/manual/1417922/Motec-Ltc.html?page=39#manual
+                        if (message.getContentVariable(0, 8) == 0) {
+                            //convert from 0.001 lambda to 1 lambda
+                            double lambda = message.getContentVariable(8, 16) / 1000.0;
+                            LambdaNumber.setText(String.format(Locale.ENGLISH, "%4.3f", lambda));
+                        }
+                        break;
+                    case 0x118:
+                        //convert from 1 kmh to mph
+                        double vehicle_speed = (message.getContentVariable(16, 8) * 0.6213712);
+                        SpeedNumber.setText(String.format(Locale.ENGLISH, "%.1f", vehicle_speed));
+                        RedlineIndicator.setProgress((int) (vehicle_speed * 10));
+                        RedlineIndicator.setProgressTintList(ColorStateList.valueOf(vehicle_speed > 26 || vehicle_speed < 10 ? Color.RED : Color.YELLOW));
+                        if (vehicle_speed < 24 || vehicle_speed > 13) {
+                            RedlineIndicator.setProgressTintList(ColorStateList.valueOf(Color.GREEN));
+                        }
+                        if (vehicle_speed > 24) {
+                            BurnOrCoast.setText("Coast!");
+                            BurnOrCoast.setTextColor(Color.GREEN);
+                        }
+                        if (vehicle_speed < 13) {
+                            BurnOrCoast.setText("Burn!");
+                            BurnOrCoast.setTextColor(Color.RED);
+                        }
+                        int throttlePosition = message.getContentVariable(8, 8);
+                        ThrottlePositionBar.setProgress(throttlePosition);
+                        int coolant_temp = message.getContentVariable(24, 8);
+                        CoolantTemperature.setText(String.format(Locale.ENGLISH, "%d C", coolant_temp));
+                        break;
+                }
 
-            handle_warnings();
+                handle_warnings();
+            }
+        }
+        catch (Exception e) {
+            Log.e("SSE", "Complete message error", e);
         }
     }
 

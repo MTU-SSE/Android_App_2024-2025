@@ -25,3 +25,4 @@ rootProject.name = "7_0Project"
 include(":app")
 
 include(":usbSerialForAndroid")
+include(":http_file_server")

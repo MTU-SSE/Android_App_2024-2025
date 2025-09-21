@@ -3,14 +3,14 @@
 //3. write data to a file
 //4. grab gps coords
 
-
-
 package com.example.a7_0project;
 
+import android.Manifest;
 import android.app.AlertDialog;
 import android.app.PendingIntent;
 import android.content.Context;
 import android.content.Intent;
+import android.content.pm.PackageManager;
 import android.content.res.ColorStateList;
 import android.graphics.Color;
 import android.hardware.usb.UsbDevice;
@@ -19,11 +19,14 @@ import android.hardware.usb.UsbManager;
 import android.location.Location;
 import android.location.LocationListener;
 import android.location.LocationManager;
+import android.net.wifi.WifiManager;
 import android.os.Bundle;
 import android.os.Handler;
 import android.util.Log;
+import android.view.View;
 import android.widget.Button;
 import android.widget.ImageView;
+import android.widget.LinearLayout;
 import android.widget.ProgressBar;
 import android.widget.TextView;
 
@@ -36,13 +39,12 @@ import com.hoho.android.usbserial.driver.UsbSerialPort;
 import com.hoho.android.usbserial.driver.UsbSerialProber;
 import com.hoho.android.usbserial.util.SerialInputOutputManager;
 
-import java.io.File;
 import java.io.FileOutputStream;
-import java.text.SimpleDateFormat;
 import java.util.Arrays;
-import java.util.Date;
 import java.util.List;
 import java.util.Locale;
+
+import com.example.http_file_server.HttpServerService;
 
 public class MainActivity extends AppCompatActivity {
 
@@ -55,6 +57,7 @@ public class MainActivity extends AppCompatActivity {
     private TextView label3;
     private TextView label4;
     private TextView label5;
+    private Button serial_button;
     private StringMessageBuilder currentMessageBuilder;
     private TextView RpmNumber;
     private TextView SpeedNumber;
@@ -67,8 +70,17 @@ public class MainActivity extends AppCompatActivity {
     private Button StarterIndicator;
     private Button EngineIndicator;
     private TextView BurnOrCoast;
+    private TextView Latitude;
+    private TextView Longitude;
+    private TextView IPAddress;
+
+    private LinearLayout DriverView;
+    private LinearLayout StatsView;
 
     private SerialInputOutputManager usbIoManager;
+    private LocationManager locationManager;
+    private LocationListener locationListener;
+    private int LOCATION_REQUEST_CODE = 100;
     private FileOutputStream logFile;
     private TextView ErrorNotif;
     private long errorTimestamp;
@@ -84,13 +96,22 @@ public class MainActivity extends AppCompatActivity {
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
 
+        //start the HTTP server to show internal files for download
+        Intent intent = new Intent(this, HttpServerService.class);
+        startService(intent);
+
+        //hide the home button, notification bar, and that weird bar with the app name
+        hideSystemUI();
+
+        //no clue, maybe show what's in layout.xml?
         setContentView(R.layout.layout);
 
+        //get references to all the UI elements defined in layout.xml
         label1 = findViewById(R.id.label1);
         label2 = findViewById(R.id.label2);
         label3 = findViewById(R.id.label3);
         label4 = findViewById(R.id.label4);
-        label5 = findViewById(R.id.label5);
+        serial_button = findViewById(R.id.serial_button);
         ErrorNotif = findViewById(R.id.errorNotif);
         MessageCount = findViewById(R.id.messageCount);
         RpmNumber = findViewById(R.id.rpmNumber);
@@ -104,25 +125,27 @@ public class MainActivity extends AppCompatActivity {
         StarterIndicator = findViewById(R.id.starterIndicator);
         EngineIndicator = findViewById(R.id.engineIndicator);
         BurnOrCoast = findViewById(R.id.burnOrCoast);
+        Latitude = findViewById(R.id.latitudeNumber);
+        Longitude = findViewById(R.id.longitudeNumber);
+        IPAddress = findViewById(R.id.IPAddrNumber);
+        DriverView = findViewById(R.id.driver_view);
+        StatsView = findViewById(R.id.stats_view);
 
         warningObjects[0] = new WarningBundle(
                 findViewById(R.id.coolantImage),
                 findViewById(R.id.coolantWarningLabel),
                 CoolantTemperature, findViewById(R.id.coolantTempLabel)
         );
-
         warningObjects[2] = new WarningBundle(
                 findViewById(R.id.engineSpeedImage),
                 findViewById(R.id.engineSpeedLabel),
                 RpmNumber, findViewById(R.id.rpmLabel)
         );
-
         warningObjects[5] = new WarningBundle(
                 findViewById(R.id.batteryWarningImage),
                 findViewById(R.id.batteryWarningLabel),
                 VoltageNumber, findViewById(R.id.voltageLabel)
         );
-
         warningObjects[6] = new WarningBundle(
                 findViewById(R.id.fuelPressureImage),
                 findViewById(R.id.fuelPressureWarningLabel),
@@ -131,9 +154,30 @@ public class MainActivity extends AppCompatActivity {
 
         currentMessageBuilder = new StringMessageBuilder();
 
-        // Find all available USB drivers (for the attached devices?).
+        //request fine location permission
+
+        ActivityCompat.requestPermissions(this, new String[]{Manifest.permission.ACCESS_FINE_LOCATION},LOCATION_REQUEST_CODE);
+
+        //location manager object to start and stop tracking location
+        locationManager = (LocationManager) getSystemService(LOCATION_SERVICE);
+
+        //define a location listener (what code to run when the location updates)
+        locationListener = location -> {
+            double lat = location.getLatitude();
+            double lon = location.getLongitude();
+            Latitude.setText(String.format(Locale.ENGLISH, "%.3f", lat));
+            Longitude.setText(String.format(Locale.ENGLISH, "%.3f", lon));
+            IPAddress.setText(getWifiIpAddress());
+            label2.setText("Lat: " + lat + "\nLon: " + lon);
+        };
+
+        serial_button.setOnClickListener(v -> startGPSTracking());
+        BurnOrCoast.setOnClickListener(v -> toggleStatsView());
+        startGPSTracking();
+
+        // Make the USB manager object to handle USB connections
         this.usbManager = (UsbManager) getSystemService(Context.USB_SERVICE);
-//
+
 //        try {
 //            File appSpecificExternalDir = new File(getBaseContext().getExternalFilesDir(null), "HUD_log.txt");
 //            if (appSpecificExternalDir.createNewFile()) {
@@ -172,9 +216,31 @@ public class MainActivity extends AppCompatActivity {
 //            }
 //        }, 1000);
 
-        auto_reconnect();
+        //start the auto_reconnect system which will handle setting up the initial connection
+
+        label1.setText(getWifiIpAddress());
+
+        //auto_reconnect();
     }
 
+   //immediately hide UI whenever anything happens
+    @Override
+    public void onWindowFocusChanged(boolean hasFocus) {
+        super.onWindowFocusChanged(hasFocus);
+        if (hasFocus) {
+            hideSystemUI();
+        }
+    }
+
+    @Override
+    protected void onResume() {
+        super.onResume();
+        hideSystemUI();
+    }
+
+    /**
+     * If there is no USB connection keep retrying every DELAY ms to establish one.
+     */
     private void auto_reconnect() {
         label1.setText("attempting autoreconnect");
         final Handler handler = new Handler();
@@ -203,9 +269,14 @@ public class MainActivity extends AppCompatActivity {
         }, delay);
     }
 
+    /**
+     * Do the long list of things required to connect to a device over USB
+     * @return
+     * @throws Exception
+     */
     private boolean connect() throws Exception {
         //list all devices in label 1
-        label1.setText(usbManager.getDeviceList().toString());
+        //label1.setText(usbManager.getDeviceList().toString());
 
         //find all usb drivers
         List<UsbSerialDriver> availableDrivers = UsbSerialProber.getDefaultProber().findAllDrivers(usbManager);
@@ -215,13 +286,13 @@ public class MainActivity extends AppCompatActivity {
             return false;
         }
         //print the first found usb driver to label 2
-        label2.setText(availableDrivers.get(0).toString());
+        //label2.setText(availableDrivers.get(0).toString());
 
         PendingIntent permissionIntent = PendingIntent.getBroadcast(getApplicationContext(), 0, new Intent(ACTION_USB_PERMISSION), PendingIntent.FLAG_IMMUTABLE);
         UsbDevice device = usbManager.getDeviceList().get(usbManager.getDeviceList().keySet().iterator().next());
         usbManager.requestPermission(device, permissionIntent);
 
-        label3.setText(String.valueOf(usbManager.hasPermission(usbManager.getDeviceList().get(usbManager.getDeviceList().keySet().iterator().next()))));
+        //label3.setText(String.valueOf(usbManager.hasPermission(usbManager.getDeviceList().get(usbManager.getDeviceList().keySet().iterator().next()))));
 
         // Open a connection to the first available driver.
         UsbSerialDriver driver = availableDrivers.get(0);
@@ -488,9 +559,9 @@ public class MainActivity extends AppCompatActivity {
 
         public Message getMessage() {
             String result = stringBuilder.toString();
-            label3.setText(result);
+            //label3.setText(result);
             String[] hexBytes = result.trim().split(" ");
-            label4.setText(Arrays.toString(hexBytes));
+            //label4.setText(Arrays.toString(hexBytes));
             //label1.setText(String.format(Locale.ENGLISH, "%d", hexBytes.length));
             try {
                 this.messageID = this.messageID | Integer.parseInt(hexBytes[0], 16);
@@ -498,9 +569,9 @@ public class MainActivity extends AppCompatActivity {
                     this.messageContent = this.messageContent << 8;
                     this.messageContent = this.messageContent | Integer.parseInt(hexBytes[i], 16);
                 }
-                label2.setText(String.format(Locale.ENGLISH, "Good message found with ID %d", this.messageID));
+                //label2.setText(String.format(Locale.ENGLISH, "Good message found with ID %d", this.messageID));
             } catch (Exception e) {
-                label1.setText(e.toString());
+                //label1.setText(e.toString());
             }
             if (state == MessageBuilderState.COMPLETE) {
                 return new Message(this.messageType, this.messageID, this.messageContent);
@@ -508,6 +579,61 @@ public class MainActivity extends AppCompatActivity {
                 return null;
             }
         }
+    }
+    
+    private void hideSystemUI() {
+        getWindow().getDecorView().setSystemUiVisibility(
+                View.SYSTEM_UI_FLAG_IMMERSIVE_STICKY
+                | View.SYSTEM_UI_FLAG_FULLSCREEN
+                | View.SYSTEM_UI_FLAG_HIDE_NAVIGATION
+                | View.SYSTEM_UI_FLAG_LAYOUT_FULLSCREEN
+                | View.SYSTEM_UI_FLAG_LAYOUT_HIDE_NAVIGATION
+                | View.SYSTEM_UI_FLAG_LAYOUT_STABLE
+        );
+    }
+
+    private void toggleStatsView() {
+        if (StatsView.getVisibility() == View.VISIBLE) {
+            StatsView.setVisibility(View.GONE);
+            DriverView.setVisibility(View.VISIBLE);
+        } else {
+            StatsView.setVisibility(View.VISIBLE);
+            DriverView.setVisibility(View.GONE);
+        }
+    }
+
+    private void startGPSTracking() {
+
+        if (ActivityCompat.checkSelfPermission(this, Manifest.permission.ACCESS_FINE_LOCATION)
+                != PackageManager.PERMISSION_GRANTED) {
+            ActivityCompat.requestPermissions(this,
+                    new String[]{Manifest.permission.ACCESS_FINE_LOCATION},
+                    LOCATION_REQUEST_CODE);
+            return;
+        }
+
+        locationManager.requestLocationUpdates(
+                LocationManager.GPS_PROVIDER,
+                1000,  // min time interval (1 second)
+                0,     // min distance change (0m)
+                locationListener
+        );
+    }
+
+    private String getWifiIpAddress() {
+        Context context = getApplicationContext();
+        WifiManager wm = (WifiManager) context.getSystemService(Context.WIFI_SERVICE);
+        int ip = wm.getConnectionInfo().getIpAddress();
+        if (ip != 0) {
+            return String.format(
+                    "%d.%d.%d.%d",
+                    (ip & 0xff),
+                    (ip >> 8 & 0xff),
+                    (ip >> 16 & 0xff),
+                    (ip >> 24 & 0xff)
+            );
+        }
+        return "No Local IP Address";
     }
 
     /*---------- Listener class to get coordinates ------------- */

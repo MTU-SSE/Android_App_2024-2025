@@ -19,16 +19,6 @@ public class HttpServerService extends Service {
     public void onCreate() {
         super.onCreate();
 
-        // Create test file each time the service starts
-        try {
-            File dir = getFilesDir();
-            String name = System.currentTimeMillis() + ".txt";
-            FileWriter writer = new FileWriter(new File(dir, name));
-            writer.write("Hello from " + name);
-            writer.close();
-        } catch (IOException e) {
-            e.printStackTrace();
-        }
 
         server = new MyHttpServer(getFilesDir());
         try {
@@ -79,7 +69,7 @@ public class HttpServerService extends Service {
                 }
             }
 
-            StringBuilder html = new StringBuilder("<html><body><h1>Files</h1><ul>");
+            StringBuilder html = new StringBuilder("<html><body><h1>Files</h1><ul><button type=\"button\" onclick=\"location.reload()\">Refresh</button>");
             File[] files = baseDir.listFiles();
             if (files != null) {
                 for (File f : files) {

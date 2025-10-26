@@ -424,6 +424,37 @@
                         android:layout_height="match_parent">
 
                         <TextView
+                            android:id="@+id/gpsSpeedLabel"
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:layout_weight="40"
+                            android:fontFamily="sans-serif-black"
+                            android:scaleY="1.1"
+                            android:text="GPS Speed"
+                            android:textAlignment="textEnd"
+                            android:textColor="#00FF00"
+                            android:textSize="24sp"
+                            android:typeface="monospace" />
+
+                        <TextView
+                            android:id="@+id/gpsSpeedNumber"
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:layout_weight="80"
+                            android:fontFamily="sans-serif-black"
+                            android:scaleY="1.1"
+                            android:text="-0.00"
+                            android:textAlignment="center"
+                            android:textColor="#00FF00"
+                            android:textSize="30sp"
+                            android:typeface="monospace" />
+                    </TableRow>
+
+                    <TableRow
+                        android:layout_width="match_parent"
+                        android:layout_height="match_parent">
+
+                        <TextView
                             android:id="@+id/latitudeLabel"
                             android:layout_width="match_parent"
                             android:layout_height="wrap_content"
@@ -492,7 +523,7 @@
                             android:layout_weight="40"
                             android:fontFamily="sans-serif-black"
                             android:scaleY="1.1"
-                            android:text="IP Address"
+                            android:text="URL:"
                             android:textAlignment="textEnd"
                             android:textColor="#00FF00"
                             android:textSize="24sp"
@@ -505,10 +536,10 @@
                             android:layout_weight="80"
                             android:fontFamily="sans-serif-black"
                             android:scaleY="1.1"
-                            android:text="255.255.255.255"
+                            android:text="Starting..."
                             android:textAlignment="center"
                             android:textColor="#00FF00"
-                            android:textSize="23sp"
+                            android:textSize="20sp"
                             android:typeface="monospace" />
                     </TableRow>
 

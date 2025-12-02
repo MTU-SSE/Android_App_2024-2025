@@ -88,7 +88,7 @@
                 android:layout_height="match_parent"
                 android:layout_weight="40"
                 android:orientation="horizontal"
-                android:visibility="visible">
+                android:visibility="invisible">
 
                 <LinearLayout
                     android:layout_width="fill_parent"
@@ -222,7 +222,7 @@
                 android:layout_weight="2"
                 android:baselineAligned="false"
                 android:orientation="horizontal"
-                android:visibility="invisible">
+                android:visibility="visible">
 
                 <LinearLayout
                     android:layout_width="fill_parent"
@@ -539,7 +539,7 @@
                             android:text="Starting..."
                             android:textAlignment="center"
                             android:textColor="#00FF00"
-                            android:textSize="20sp"
+                            android:textSize="16sp"
                             android:typeface="monospace" />
                     </TableRow>
 

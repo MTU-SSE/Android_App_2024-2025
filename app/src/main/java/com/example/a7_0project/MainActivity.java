@@ -184,7 +184,25 @@ public class MainActivity extends AppCompatActivity {
         //location manager object to start and stop tracking location
         locationManager = (LocationManager) getSystemService(LOCATION_SERVICE);
 
-        //define a location listener (what code to run when the location updates)
+        Handler log_file_write_handler = new Handler();
+        log_file_write_handler.postDelayed(new Runnable() {
+            @Override
+            public void run() {
+
+                IPAddress.setText("http://" + getWifiIpAddress() + ":8080");
+                Latitude.setText(String.format(Locale.ENGLISH, "Handler ran %d", race_start_timestamp));
+
+                if (race_start_timestamp != 0) {
+                    append_csv();
+                }
+                //clear the data object
+                data_frame.clear();
+                log_file_write_handler.postDelayed(this, 1000);
+            }
+        }, 1000);
+
+
+            //define a location listener (what code to run when the location updates)
         locationListener = location -> {
             double lat = location.getLatitude();
             double lon = location.getLongitude();
@@ -198,15 +216,12 @@ public class MainActivity extends AppCompatActivity {
             GPSSpeed.setText(String.format(Locale.ENGLISH, "%.2f", speed));
             data_frame.put("gps_speed", speed);
 
-            IPAddress.setText("http://" + getWifiIpAddress() + ":8080");
-            label2.setText("Lat: " + lat + "\nLon: " + lon);
+            //label2.setText("Lat: " + lat + "\nLon: " + lon);
 
             //save the current data to the file
-            if (race_start_timestamp != 0) {
-                append_csv();
-            }
-            //clear the data object
-            data_frame.clear();
+//            if (race_start_timestamp != 0) {
+//                append_csv();
+//            }
         };
 
         //serial_button.setOnClickListener(v -> startGPSTracking());
@@ -252,14 +267,9 @@ public class MainActivity extends AppCompatActivity {
         setIntent(intent); // Important to update the Activity's intent
         if (UsbManager.ACTION_USB_DEVICE_ATTACHED.equals(intent.getAction())) {
             // USB device was attached while Activity was running
-            // You might want to re-initiate the connection logic here
-            // or ensure your existing connection logic handles this gracefully.
             Log.i("SSE", "USB device attached while Activity is running.");
-            // Potentially call your auto_reconnect() or connect() method,
-            // but be careful about creating multiple connections.
-            // You might need to check if a connection is already active.
             if (usbIoManager == null || usbIoManager.getState() == SerialInputOutputManager.State.STOPPED) {
-                auto_reconnect(); // Or directly call connect() if appropriate
+                auto_reconnect();
             }
         }
     }
@@ -448,14 +458,19 @@ public class MainActivity extends AppCompatActivity {
     }
 
     private void temp_logging_start() {
-        if (this.race_start_timestamp == 0) {
-            create_csv();
-            SpeedLabel.setTextColor(Color.YELLOW);
-            this.race_start_timestamp = System.currentTimeMillis();
-        }
-        else {
-            SpeedLabel.setTextColor(Color.GREEN);
-            this.race_start_timestamp = 0;
+        try {
+            if (race_start_timestamp == 0) {
+                create_csv();
+                SpeedLabel.setTextColor(Color.YELLOW);
+                race_start_timestamp = System.currentTimeMillis();
+            }
+            else {
+                SpeedLabel.setTextColor(Color.GREEN);
+                race_start_timestamp = 0;
+            }
+        } catch (Exception e) {
+            SpeedLabel.setTextColor(Color.RED);
+            Log.e("SSE", e.getMessage());
         }
     }
 
@@ -468,7 +483,7 @@ public class MainActivity extends AppCompatActivity {
             //serialButton.setBackgroundColor(Color.GREEN);
             currentMessageBuilder = new StringMessageBuilder();
             if (message == null) {
-                pushAlert("bad news", "someone (not naming names) (john) Called getMessage on an unfinished message object", "oopsies");
+                //pushAlert("bad news", "someone (not naming names) (john) Called getMessage on an unfinished message object", "oopsies");
             } else {
                 switch (message.messageID) {
                     case 0x640:
@@ -483,11 +498,36 @@ public class MainActivity extends AppCompatActivity {
                         //convert from 0.1kPa to 1 kPa
                         int fuelPressure = message.getContentVariable(32, 16) / 10;
                         FuelPressure.setText(String.format(Locale.ENGLISH, "%d kPa", fuelPressure));
+                        data_frame.put("fuel_pressure", String.format("%d", fuelPressure));
+                        int fuelInjectorTiming = message.getContentVariable(48, 8);
+                        data_frame.put("fuel_injector_timing", String.format("%d", fuelInjectorTiming));
+                        int engineEfficiency = message.getContentVariable(56, 8);
+                        data_frame.put("engine_efficiency", String.format("%d", engineEfficiency));
                         break;
+                    case 0x642:
+                        int engineLoad = message.getContentVariable(16, 16);
+                        data_frame.put("engine_load", String.format("%d", engineLoad));
+                        break;
+                        //no wheelspeed data from these
+                        /*
+                    case 0x648:
+                        double wheelSpeedfl = message.getContentVariable(0, 16) / 10.0;
+                        double wheelSpeedfr = message.getContentVariable(16, 16) / 10.0;
+                        double wheelSpeedbl = message.getContentVariable(32, 16) / 10.0;
+                        double wheelSpeedbr = message.getContentVariable(48, 16) / 10.0;
+                        data_frame.put("wheel_speed_ecu", String.format("%.1f", wheelSpeedfl));
+                        data_frame.put("acceleration_lateral", String.format("%.1f", wheelSpeedfr));
+                        data_frame.put("acceleration_longitudinal", String.format("%.1f", wheelSpeedbl));
+                        data_frame.put("acceleration_vertical", String.format("%.1f", wheelSpeedbr));
+                        break;
+                        */
                     case 0x649:
+                        int engineOilTemp = message.getContentVariable(8, 8) - 40;
+                        data_frame.put("oil_temp", String.format("%d", engineOilTemp));
                         //convert from 0.1 volts to 1 volts
                         float voltage = message.getContentVariable(40, 8) / (float) 10;
                         VoltageNumber.setText(String.format(Locale.ENGLISH, "%.1f V", voltage));
+                        data_frame.put("battery_voltage", String.format("%.1f", voltage));
                         if (voltage < 10.5) {
                             warningObjects[5].timestamp = System.currentTimeMillis();
                         }
@@ -530,6 +570,7 @@ public class MainActivity extends AppCompatActivity {
                         }
                         int throttlePosition = message.getContentVariable(8, 8);
                         ThrottlePositionBar.setProgress(throttlePosition);
+                        data_frame.put("throttle_position", String.format(Locale.ENGLISH, "%d", throttlePosition));
                         int coolant_temp = message.getContentVariable(24, 8);
                         CoolantTemperature.setText(String.format(Locale.ENGLISH, "%d C", coolant_temp));
                         break;
@@ -612,7 +653,7 @@ public class MainActivity extends AppCompatActivity {
      * named with the current timestamp, and writes the headers.
      */
     private void create_csv() {
-        SimpleDateFormat sdf = new SimpleDateFormat("yyyy-MM-dd_at_HH-mm-ss", Locale.getDefault());
+        SimpleDateFormat sdf = new SimpleDateFormat("yyyy-MM-dd__HH-mm-ss", Locale.getDefault());
         String filename = sdf.format(new Date()) + ".csv";
 
         File directory = getFilesDir();
@@ -761,9 +802,9 @@ public class MainActivity extends AppCompatActivity {
             //likely accurate to within 1%
             "throttle_position",
 
-            //interpolated value from the table named "Engine Efficiency"
-            //https://www.hpacademy.com/forum/motec-m1-software-tutorial/show/engine-efficiency-2
-            //only 256 possible values
+            //percent engine efficiency as reported by the ECU
+            //1%
+            //down to 1% resolution
             "engine_efficiency",
 
             //engine oil temperature

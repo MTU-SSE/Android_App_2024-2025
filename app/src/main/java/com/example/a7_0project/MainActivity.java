@@ -5,6 +5,8 @@
 
 package com.example.a7_0project;
 
+import static android.os.SystemClock.uptimeMillis;
+
 import android.Manifest;
 import android.app.AlertDialog;
 import android.app.PendingIntent;
@@ -79,10 +81,13 @@ public class MainActivity extends AppCompatActivity {
     private Button serial_button;
     private StringMessageBuilder currentMessageBuilder;
     private TextView RpmNumber;
+    private TextView RpmNumber2;
     private TextView SpeedLabel;
     private TextView SpeedNumber;
+    private TextView SpeedNumber2;
     private ProgressBar RedlineIndicator;
     private ProgressBar ThrottlePositionBar;
+    private Button RecordingButton;
     private TextView VoltageNumber;
     private TextView FuelPressure;
     private TextView LambdaNumber;
@@ -101,13 +106,18 @@ public class MainActivity extends AppCompatActivity {
     private SerialInputOutputManager usbIoManager;
     private LocationManager locationManager;
     private LocationListener locationListener;
+    private double gps_speed = -1;
     private int LOCATION_REQUEST_CODE = 100;
     private FileOutputStream logFile;
     private TextView ErrorNotif;
     private long errorTimestamp;
     private TextView MessageCount;
     private int messageCounter;
+    private long ecu_speed_timestamp;
     public static boolean threadLock = false;
+
+    //how often the log function runs in milliseconds
+    public static int log_timing = 100;
 
     private final WarningBundle[] warningObjects = new WarningBundle[9];
 
@@ -136,10 +146,13 @@ public class MainActivity extends AppCompatActivity {
         ErrorNotif = findViewById(R.id.errorNotif);
         MessageCount = findViewById(R.id.messageCount);
         RpmNumber = findViewById(R.id.rpmNumber);
+        RpmNumber2 = findViewById(R.id.rpmNumber2);
         SpeedLabel = findViewById(R.id.speedLabel);
         SpeedNumber = findViewById(R.id.speedNumber);
+        SpeedNumber2 = findViewById(R.id.speedNumber2);
         RedlineIndicator = findViewById(R.id.redlineIndicator);
         ThrottlePositionBar = findViewById(R.id.throttlePositionBar);
+        RecordingButton = findViewById(R.id.recordingButton);
         VoltageNumber = findViewById(R.id.voltageNumber);
         FuelPressure = findViewById(R.id.fuelPressureNumber);
         LambdaNumber = findViewById(R.id.lambdaNumber);
@@ -190,38 +203,33 @@ public class MainActivity extends AppCompatActivity {
             public void run() {
 
                 IPAddress.setText("http://" + getWifiIpAddress() + ":8080");
-                Latitude.setText(String.format(Locale.ENGLISH, "Handler ran %d", race_start_timestamp));
 
                 if (race_start_timestamp != 0) {
                     append_csv();
                 }
                 //clear the data object
                 data_frame.clear();
-                log_file_write_handler.postDelayed(this, 1000);
+                log_file_write_handler.postDelayed(this, log_timing);
             }
-        }, 1000);
+        }, log_timing);
 
-
-            //define a location listener (what code to run when the location updates)
+        //define a location listener (what code to run when the location updates)
         locationListener = location -> {
             double lat = location.getLatitude();
             double lon = location.getLongitude();
-            double speed = location.getSpeed();
+            gps_speed = location.getSpeed();
             double time_millis = location.getTime();
             data_frame.put("gps_time", time_millis);
             Latitude.setText(String.format(Locale.ENGLISH, "%.4f", lat));
             data_frame.put("gps_latitude", String.format(Locale.ENGLISH, "%.4f", lat));
             Longitude.setText(String.format(Locale.ENGLISH, "%.4f", lon));
             data_frame.put("gps_longitude", String.format(Locale.ENGLISH, "%.4f", lon));
-            GPSSpeed.setText(String.format(Locale.ENGLISH, "%.2f", speed));
-            data_frame.put("gps_speed", speed);
-
-            //label2.setText("Lat: " + lat + "\nLon: " + lon);
-
-            //save the current data to the file
-//            if (race_start_timestamp != 0) {
-//                append_csv();
-//            }
+            GPSSpeed.setText(String.format(Locale.ENGLISH, "%.2f", gps_speed));
+            data_frame.put("gps_speed", gps_speed);
+            if ((uptimeMillis() - ecu_speed_timestamp) > 500) {
+                SpeedLabel.setTextColor(Color.CYAN);
+                handleSpeed(gps_speed * 2.23693629);
+            }
         };
 
         //serial_button.setOnClickListener(v -> startGPSTracking());
@@ -229,7 +237,7 @@ public class MainActivity extends AppCompatActivity {
         startGPSTracking();
 
         //TODO: make starter button lap button
-        StarterIndicator.setOnClickListener(v -> temp_logging_start());
+        RecordingButton.setOnClickListener(v -> temp_logging_start());
         //add more data from ecu and stuff
         //test on phone
         //update documentation to be clear about data formats???
@@ -330,7 +338,8 @@ public class MainActivity extends AppCompatActivity {
     private void auto_reconnect() {
         label1.setText("Attempting autoreconnect...");
         final Handler handler = new Handler();
-        final int delay = 1000; // Increased delay to 1 second to be less aggressive
+        //delay in milliseconds
+        final int delay = 100;
 
         handler.postDelayed(new Runnable() {
             public void run() {
@@ -461,21 +470,17 @@ public class MainActivity extends AppCompatActivity {
         try {
             if (race_start_timestamp == 0) {
                 create_csv();
-                SpeedLabel.setTextColor(Color.YELLOW);
+                SpeedLabel.setTextColor(Color.RED);
                 race_start_timestamp = System.currentTimeMillis();
             }
             else {
-                SpeedLabel.setTextColor(Color.GREEN);
+                RecordingButton.setBackgroundTintList(ColorStateList.valueOf(Color.parseColor("#541414")));
                 race_start_timestamp = 0;
             }
         } catch (Exception e) {
-            SpeedLabel.setTextColor(Color.RED);
+            RecordingButton.setBackgroundTintList(ColorStateList.valueOf(Color.BLUE));
             Log.e("SSE", e.getMessage());
         }
-    }
-
-    private void temp_lap_button() {
-        this.lap_number++;
     }
 
     private void handle_complete_message(Message message) {
@@ -483,12 +488,17 @@ public class MainActivity extends AppCompatActivity {
             //serialButton.setBackgroundColor(Color.GREEN);
             currentMessageBuilder = new StringMessageBuilder();
             if (message == null) {
+                Log.e("SSE", "getMessage called on unfinished message object");
                 //pushAlert("bad news", "someone (not naming names) (john) Called getMessage on an unfinished message object", "oopsies");
             } else {
                 switch (message.messageID) {
+                    //my custom data
+                    //case 0x001:
+
                     case 0x640:
                         int rpm = message.getContentVariable(0, 16);
                         RpmNumber.setText(String.format(Locale.ENGLISH, "%d", rpm));
+                        RpmNumber2.setText(String.format(Locale.ENGLISH, "%d", rpm));
                         //engine indicator enabled if rpm is above 1600
                         EngineIndicator.setBackgroundTintList(ColorStateList.valueOf( rpm > 1600 ? Color.GREEN :Color.RED));
                         //starter indicator enabled if rpm is between 100 and 1500
@@ -553,21 +563,9 @@ public class MainActivity extends AppCompatActivity {
                         break;
                     case 0x118:
                         //convert from 1 kmh to mph
-                        double vehicle_speed = (message.getContentVariable(16, 8) * 0.6213712);
-                        SpeedNumber.setText(String.format(Locale.ENGLISH, "%.1f", vehicle_speed));
-                        RedlineIndicator.setProgress((int) (vehicle_speed * 10));
-                        RedlineIndicator.setProgressTintList(ColorStateList.valueOf(vehicle_speed > 26 || vehicle_speed < 10 ? Color.RED : Color.YELLOW));
-                        if (vehicle_speed < 24 || vehicle_speed > 13) {
-                            RedlineIndicator.setProgressTintList(ColorStateList.valueOf(Color.GREEN));
-                        }
-                        if (vehicle_speed > 24) {
-                            BurnOrCoast.setText("Coast!");
-                            BurnOrCoast.setTextColor(Color.GREEN);
-                        }
-                        if (vehicle_speed < 13) {
-                            BurnOrCoast.setText("Burn!");
-                            BurnOrCoast.setTextColor(Color.RED);
-                        }
+                        double ecu_speed = (message.getContentVariable(16, 8) * 0.6213712);
+                        SpeedLabel.setTextColor(Color.GREEN);
+                        handleSpeed(ecu_speed);
                         int throttlePosition = message.getContentVariable(8, 8);
                         ThrottlePositionBar.setProgress(throttlePosition);
                         data_frame.put("throttle_position", String.format(Locale.ENGLISH, "%d", throttlePosition));
@@ -581,6 +579,24 @@ public class MainActivity extends AppCompatActivity {
         }
         catch (Exception e) {
             Log.e("SSE", "Complete message error", e);
+        }
+    }
+
+    public void handleSpeed(double vehicle_speed) {
+        SpeedNumber.setText(String.format(Locale.ENGLISH, "%.1f", vehicle_speed));
+        SpeedNumber2.setText(String.format(Locale.ENGLISH, "%.1f", vehicle_speed));
+        RedlineIndicator.setProgress((int) (vehicle_speed * 10));
+        RedlineIndicator.setProgressTintList(ColorStateList.valueOf(vehicle_speed > 26 || vehicle_speed < 10 ? Color.RED : Color.YELLOW));
+        if (vehicle_speed < 24 || vehicle_speed > 13) {
+            RedlineIndicator.setProgressTintList(ColorStateList.valueOf(Color.GREEN));
+        }
+        if (vehicle_speed > 24) {
+            BurnOrCoast.setText("Coast!");
+            BurnOrCoast.setTextColor(Color.GREEN);
+        }
+        if (vehicle_speed < 13) {
+            BurnOrCoast.setText("Burn!");
+            BurnOrCoast.setTextColor(Color.RED);
         }
     }
 
@@ -674,11 +690,9 @@ public class MainActivity extends AppCompatActivity {
             writer.write("\n");
             writer.flush();
 
-            Log.i("CSV_Creation", "Successfully created and wrote headers to " + this.current_file.getName());
+            Log.i("SSE", "Successfully created and wrote headers to " + this.current_file.getName());
         } catch (IOException e) {
-            Log.e("CSV_Creation", "Error writing to CSV file", e);
-            // Inform the user that file creation failed
-            //pushAlert("File Error", "Could not create log file: " + e.getMessage(), "OK");
+            Log.e("SSE", "Error writing to CSV file", e);
         }
     }
 
@@ -691,7 +705,7 @@ public class MainActivity extends AppCompatActivity {
         // For long-running apps, you might want to store the fileName in a member variable.
 
         if (this.current_file == null) {
-            Log.e("CSV_Append", "No CSV file found to append to. Call create_csv() first.");
+            Log.e("SSE", "No CSV file found to append to. Call create_csv() first.");
             return;
         }
 
@@ -736,7 +750,7 @@ public class MainActivity extends AppCompatActivity {
             writer.flush();
 
         } catch (IOException e) {
-            Log.e("CSV_Append", "Error appending data to CSV file", e);
+            Log.e("SSE", "Error appending data to CSV file", e);
         }
     }
 
@@ -855,7 +869,12 @@ public class MainActivity extends AppCompatActivity {
             //voltage of the battery as reported by the ECU
             //volts
             //xx.x
-            "battery_voltage"
+            "battery_voltage",
+
+            //a collection of booleans indicating if at least one CAN message with this datapoint was received
+            //bool
+            //binary
+            "message_rec_bits"
     };
 
     public class Message {
@@ -980,10 +999,11 @@ public class MainActivity extends AppCompatActivity {
 
         locationManager.requestLocationUpdates(
                 LocationManager.GPS_PROVIDER,
-                1000,  // min time interval (1 second)
+                100,  // min time interval (1/11 second)
                 0,     // min distance change (0m)
                 locationListener
         );
+        Latitude.setText("ran");
     }
 
     private String getWifiIpAddress() {

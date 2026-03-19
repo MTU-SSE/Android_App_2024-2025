@@ -8,7 +8,6 @@ android {
 
     defaultConfig {
         minSdkVersion 17
-        targetSdkVersion 34
         consumerProguardFiles 'proguard-rules.pro'
         
         testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
@@ -27,6 +26,12 @@ android {
         singleVariant('release') {
             withSourcesJar()
         }
+    }
+    lint {
+        targetSdk 34
+    }
+    testOptions {
+        targetSdk 34
     }
 }
 

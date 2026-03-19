@@ -14,6 +14,9 @@
         <action
             android:id="@+id/action_FirstFragment_to_SecondFragment"
             app:destination="@id/SecondFragment" />
+        <action
+            android:id="@+id/action_FirstFragment_to_BluetoothSelectFragment"
+            app:destination="@id/BluetoothSelectFragment" />
     </fragment>
     <fragment
         android:id="@+id/SecondFragment"
@@ -25,4 +28,9 @@
             android:id="@+id/action_SecondFragment_to_FirstFragment"
             app:destination="@id/FirstFragment" />
     </fragment>
+    <fragment
+        android:id="@+id/BluetoothSelectFragment"
+        android:name="com.example.a7_0project.BluetoothSelectFragment"
+        android:label="Select Bluetooth Device"
+        tools:layout="@layout/fragment_bluetooth_select" />
 </navigation>

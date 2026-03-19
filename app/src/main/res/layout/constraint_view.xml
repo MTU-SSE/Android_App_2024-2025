@@ -1,0 +1,341 @@
+<?xml version="1.0" encoding="utf-8"?>
+<androidx.constraintlayout.widget.ConstraintLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:id="@+id/contraint_background"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:background="#000000"
+    android:baselineAligned="false"
+    android:keepScreenOn="true"
+    android:orientation="vertical"
+    android:visibility="visible"
+    tools:visibility="visible">
+
+
+    <TextView
+        android:id="@+id/label1"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="@string/example"
+        android:textAppearance="@style/TextAppearance.AppCompat.Large"
+        android:textColor="#673AB7"
+        android:textSize="30sp"
+        android:visibility="gone"
+        app:layout_constraintBottom_toTopOf="parent"
+        app:layout_constraintEnd_toStartOf="parent"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintTop_toTopOf="parent" />
+
+    <TextView
+        android:id="@+id/label2"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="TextView"
+        android:textColor="#FF0000"
+        android:textSize="30sp"
+        android:visibility="gone"
+        app:layout_constraintBottom_toTopOf="parent"
+        app:layout_constraintEnd_toStartOf="parent"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintTop_toTopOf="parent" />
+
+    <TextView
+        android:id="@+id/label3"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="TextView"
+        android:textColor="#4CAF50"
+        android:textSize="30sp"
+        android:visibility="gone"
+        app:layout_constraintBottom_toTopOf="parent"
+        app:layout_constraintEnd_toStartOf="parent"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintTop_toTopOf="parent" />
+
+    <TextView
+        android:id="@+id/label4"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="TextView"
+        android:textColor="#EA2AFF"
+        android:textSize="30sp"
+        android:visibility="gone"
+        app:layout_constraintBottom_toTopOf="parent"
+        app:layout_constraintEnd_toStartOf="parent"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintTop_toTopOf="parent" />
+
+
+    <TextView
+        android:id="@+id/batteryWarningLabel"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:alpha="0.2"
+        android:fontFamily="sans-serif-black"
+        android:gravity="center"
+        android:scaleY="1.2"
+        android:text="Voltage"
+        android:textAlignment="center"
+        android:textColor="#FFEB3B"
+        android:textSize="30sp"
+        android:typeface="monospace"
+        app:layout_constraintBottom_toTopOf="@+id/batteryWarningImage"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintStart_toEndOf="@id/viewSwitcher"
+        app:layout_constraintTop_toTopOf="parent"
+        app:layout_constraintVertical_bias="0.0" />
+
+
+    <ImageView
+        android:id="@+id/batteryWarningImage"
+        android:layout_width="0dp"
+        android:layout_height="0dp"
+        android:alpha="0.35"
+        android:foreground="@android:drawable/ic_lock_idle_low_battery"
+        android:foregroundTint="#FFEB3B"
+        android:scaleX="0.5"
+        android:scaleY="0.95"
+        app:layout_constraintBottom_toTopOf="@+id/fuelPressureWarningLabel"
+        app:layout_constraintDimensionRatio="h,2:1"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintStart_toEndOf="@+id/viewSwitcher"
+        app:layout_constraintTop_toBottomOf="@+id/batteryWarningLabel" />
+
+    <TextView
+        android:id="@+id/fuelPressureWarningLabel"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:alpha="0.2"
+        android:fontFamily="sans-serif-black"
+        android:gravity="center"
+        android:scaleY="1.2"
+        android:text="Pressure"
+        android:textAlignment="center"
+        android:textColor="#FFEB3B"
+        android:textSize="26sp"
+        android:typeface="monospace"
+        app:layout_constraintBottom_toTopOf="@+id/fuelPressureImage"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintStart_toEndOf="@+id/viewSwitcher"
+        app:layout_constraintTop_toBottomOf="@+id/batteryWarningImage" />
+
+
+    <ImageView
+        android:id="@+id/fuelPressureImage"
+        android:layout_width="0dp"
+        android:layout_height="0dp"
+        android:alpha="0.35"
+        android:foreground="@drawable/ic_fas_flask"
+        android:foregroundTint="#FFEB3B"
+        android:scaleX="0.4"
+        android:scaleY="0.90"
+        app:layout_constraintBottom_toTopOf="@+id/coolantWarningLabel"
+        app:layout_constraintDimensionRatio="h,2:1"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintStart_toEndOf="@+id/viewSwitcher"
+        app:layout_constraintTop_toBottomOf="@+id/fuelPressureWarningLabel" />
+
+    <TextView
+        android:id="@+id/coolantWarningLabel"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:alpha="0.2"
+        android:fontFamily="sans-serif-black"
+        android:gravity="center"
+        android:scaleY="1.2"
+        android:text="Coolant"
+        android:textAlignment="center"
+        android:textColor="#FFEB3B"
+        android:textSize="26sp"
+        android:typeface="monospace"
+        app:layout_constraintBottom_toTopOf="@+id/coolantImage"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintStart_toEndOf="@+id/viewSwitcher"
+        app:layout_constraintTop_toBottomOf="@+id/fuelPressureImage" />
+
+
+    <ImageView
+        android:id="@+id/coolantImage"
+        android:layout_width="0dp"
+        android:layout_height="0dp"
+        android:alpha="0.35"
+        android:foreground="@drawable/ic_fas_thermometer_full"
+        android:foregroundTint="#FFEB3B"
+        android:scaleX="0.3"
+        android:scaleY="0.95"
+        app:layout_constraintBottom_toTopOf="@+id/engineSpeedLabel"
+        app:layout_constraintDimensionRatio="h,2:1"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintStart_toEndOf="@+id/viewSwitcher"
+        app:layout_constraintTop_toBottomOf="@+id/coolantWarningLabel" />
+
+    <TextView
+        android:id="@+id/engineSpeedLabel"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:alpha="0.2"
+        android:baselineAligned="false"
+        android:fontFamily="sans-serif-black"
+        android:gravity="center"
+        android:scaleY="1.2"
+        android:text="Engine"
+        android:textAlignment="center"
+        android:textColor="#FFEB3B"
+        android:textSize="24sp"
+        android:typeface="monospace"
+        app:layout_constraintBottom_toTopOf="@+id/engineSpeedImage"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintStart_toEndOf="@+id/viewSwitcher"
+        app:layout_constraintTop_toBottomOf="@+id/coolantImage" />
+
+    <ImageView
+        android:id="@+id/engineSpeedImage"
+        android:layout_width="0dp"
+        android:layout_height="0dp"
+        android:alpha="0.35"
+        android:foreground="@drawable/ic_fab_steam"
+        android:foregroundTint="#FFEB3B"
+        android:scaleX="0.45"
+        android:scaleY="0.95"
+        app:layout_constraintBottom_toTopOf="@+id/errorNotif"
+        app:layout_constraintDimensionRatio="2:1"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintStart_toEndOf="@+id/viewSwitcher"
+        app:layout_constraintTop_toBottomOf="@+id/engineSpeedLabel"
+        app:layout_constraintVertical_bias="0.0" />
+
+    <ProgressBar
+        android:id="@+id/redlineIndicator"
+        style="?android:attr/progressBarStyleHorizontal"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:max="300"
+        android:progress="150"
+        android:progressTint="#0BCA0B"
+        android:scaleX="0.95"
+        android:scaleY="8"
+        android:visibility="gone"
+        app:layout_constraintBottom_toTopOf="parent"
+        app:layout_constraintEnd_toStartOf="parent"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintTop_toTopOf="parent" />
+
+
+    <TextView
+        android:id="@+id/burnOrCoast"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:fontFamily="sans-serif-black"
+        android:scaleY="1.1"
+        android:text="Burn!"
+        android:textAlignment="center"
+        android:textAllCaps="false"
+        android:textColor="#FF1200"
+        android:textSize="30dp"
+        android:textStyle="bold"
+        android:typeface="monospace"
+        app:layout_constraintBottom_toBottomOf="parent"
+        app:layout_constraintEnd_toStartOf="@+id/throttlePositionBar"
+        app:layout_constraintStart_toStartOf="parent" />
+
+    <ProgressBar
+        android:id="@+id/throttlePositionBar"
+        style="?android:attr/progressBarStyleHorizontal"
+        android:layout_width="0dp"
+        android:layout_height="30dp"
+        android:max="100"
+        android:progress="50"
+        android:progressTint="#FFC107"
+        android:scaleX="0.94"
+        android:scaleY="5"
+        app:layout_constraintBottom_toBottomOf="parent"
+        app:layout_constraintEnd_toStartOf="@+id/recordingButton"
+        app:layout_constraintStart_toEndOf="@+id/burnOrCoast" />
+
+    <Button
+        android:id="@+id/recordingButton"
+        android:layout_width="30dp"
+        android:layout_height="30dp"
+        android:backgroundTint="#541414"
+        android:text="R"
+        app:layout_constraintBottom_toBottomOf="parent"
+        app:layout_constraintEnd_toStartOf="@+id/errorNotif"
+        app:layout_constraintHorizontal_bias="1.0"
+        app:layout_constraintStart_toEndOf="@+id/throttlePositionBar"
+        tools:ignore="TouchTargetSizeCheck" />
+
+    <TextView
+        android:id="@+id/messageCount"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:gravity="center"
+        android:text="-123"
+        android:textColor="#FDFDFD"
+        android:textSize="20sp"
+        app:layout_constraintBottom_toBottomOf="parent"
+        app:layout_constraintEnd_toEndOf="parent" />
+
+    <TextView
+        android:id="@+id/errorNotif"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:alpha="0.4"
+        android:gravity="center"
+        android:text="E!"
+        android:textColor="#FF0000"
+        android:textSize="20sp"
+        app:layout_constraintBottom_toBottomOf="parent"
+        app:layout_constraintEnd_toStartOf="@+id/messageCount" />
+
+    <ViewSwitcher
+        android:id="@+id/viewSwitcher"
+        android:layout_width="0dp"
+        android:layout_height="0dp"
+        app:layout_constraintBottom_toTopOf="@+id/tabLayout"
+        app:layout_constraintEnd_toStartOf="@+id/fuelPressureWarningLabel"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintTop_toTopOf="parent">
+
+        <include layout="@layout/view_dash_metrics" />
+
+        <include layout="@layout/fragment_bluetooth_select" />
+
+    </ViewSwitcher>
+
+    <com.google.android.material.tabs.TabLayout
+        android:id="@+id/tabLayout"
+        android:layout_width="0dp"
+        android:layout_height="wrap_content"
+        android:background="#000000"
+        app:layout_constraintBottom_toTopOf="@+id/throttlePositionBar"
+        app:layout_constraintEnd_toEndOf="@+id/viewSwitcher"
+        app:layout_constraintStart_toStartOf="parent"
+        app:tabGravity="start"
+        app:tabIndicatorColor="#00FF00"
+        app:tabIndicatorGravity="top"
+        app:tabMode="scrollable"
+        app:tabSelectedTextColor="#00FF00"
+        app:tabTextColor="#FFFFFF">
+
+        <com.google.android.material.tabs.TabItem
+            android:id="@+id/driverTabitem"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="Driver" />
+
+        <com.google.android.material.tabs.TabItem
+            android:id="@+id/dataTabitem"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="More Data" />
+
+        <com.google.android.material.tabs.TabItem
+            android:id="@+id/bluetoothTabitem"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="Bluetooth" />
+
+    </com.google.android.material.tabs.TabLayout>
+
+</androidx.constraintlayout.widget.ConstraintLayout>

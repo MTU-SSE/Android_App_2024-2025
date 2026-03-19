@@ -6,7 +6,9 @@
     <string name="next">Next</string>
     <string name="previous">Previous</string>
     <string name="example">Example</string>
-    <string name="serial_button">Connect</string>
+    <string name="serial_button">Bluetooth</string>
+    <string name="select_bluetooth_device">Select Bluetooth Device</string>
+    <string name="refresh_paired_devices">Refresh Paired Devices</string>
 
     <string name="lorem_ipsum">
         Lorem ipsum dolor sit amet, consectetur adipiscing elit. Nam in scelerisque sem. Mauris

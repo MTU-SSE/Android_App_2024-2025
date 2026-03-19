@@ -13,62 +13,37 @@
 
     <LinearLayout
         android:layout_width="match_parent"
-        android:layout_height="136dp"
-        android:layout_weight="2"
+        android:layout_height="wrap_content"
         android:orientation="horizontal"
-        android:visibility="gone">
+        android:visibility="visible">
 
         <TextView
             android:id="@+id/label1"
-            android:layout_width="match_parent"
+            android:layout_width="0dp"
             android:layout_height="wrap_content"
             android:layout_weight="1"
             android:text="@string/example"
             android:textAppearance="@style/TextAppearance.AppCompat.Large"
             android:textColor="#673AB7"
-            android:textSize="30sp" />
+            android:textSize="20sp" />
 
         <TextView
             android:id="@+id/label2"
-            android:layout_width="match_parent"
+            android:layout_width="0dp"
             android:layout_height="wrap_content"
             android:layout_weight="1"
             android:text="TextView"
             android:textColor="#FF0000"
-            android:textSize="30sp" />
-
-        <TextView
-            android:id="@+id/label3"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:layout_weight="1"
-            android:text="TextView"
-            android:textColor="#4CAF50"
-            android:textSize="30sp" />
-
-        <TextView
-            android:id="@+id/label4"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:layout_weight="1"
-            android:text="TextView"
-            android:textColor="#EA2AFF"
-            android:textSize="30sp" />
+            android:textSize="20sp" />
 
         <Button
             android:id="@+id/serial_button"
-            android:layout_width="match_parent"
+            android:layout_width="0dp"
             android:layout_height="wrap_content"
             android:layout_weight="1"
             android:text="@string/serial_button"
-            android:textSize="34sp" />
+            android:textSize="20sp" />
     </LinearLayout>
-
-    <Space
-        android:layout_width="fill_parent"
-        android:layout_height="50dp"
-        android:baselineAligned="false"
-        tools:visibility="gone" />
 
     <LinearLayout
         android:layout_width="match_parent"
@@ -88,7 +63,7 @@
                 android:layout_height="match_parent"
                 android:layout_weight="40"
                 android:orientation="horizontal"
-                android:visibility="invisible">
+                android:visibility="visible">
 
                 <LinearLayout
                     android:layout_width="fill_parent"
@@ -222,12 +197,12 @@
                 android:layout_weight="2"
                 android:baselineAligned="false"
                 android:orientation="horizontal"
-                android:visibility="visible">
+                android:visibility="invisible">
 
                 <LinearLayout
                     android:layout_width="fill_parent"
                     android:layout_height="match_parent"
-                    android:layout_weight="2"
+                    android:layout_weight="3"
                     android:orientation="vertical">
 
                     <TextView
@@ -293,7 +268,7 @@
                 <TableLayout
                     android:layout_width="match_parent"
                     android:layout_height="match_parent"
-                    android:layout_weight="2">
+                    android:layout_weight="3">
 
                     <TableRow
                         android:layout_width="match_parent"
@@ -452,7 +427,8 @@
 
                     <TableRow
                         android:layout_width="match_parent"
-                        android:layout_height="match_parent">
+                        android:layout_height="match_parent"
+                        android:visibility="gone">
 
                         <TextView
                             android:id="@+id/latitudeLabel"
@@ -483,7 +459,8 @@
 
                     <TableRow
                         android:layout_width="match_parent"
-                        android:layout_height="match_parent">
+                        android:layout_height="match_parent"
+                        android:visibility="gone">
 
                         <TextView
                             android:id="@+id/longitudeLabel"
@@ -551,9 +528,9 @@
 
         <LinearLayout
             android:id="@+id/constant_error_bar"
-            android:layout_width="wrap_content"
+            android:layout_width="match_parent"
             android:layout_height="match_parent"
-            android:layout_weight="3"
+            android:layout_weight="200"
             android:orientation="vertical"
             tools:ignore="DisableBaselineAlignment">
 
@@ -580,14 +557,14 @@
 
                 <ImageView
                     android:id="@+id/batteryWarningImage"
-                    android:layout_width="120dp"
+                    android:layout_width="100dp"
                     android:layout_height="60dp"
                     android:layout_gravity="center"
                     android:layout_weight="0"
                     android:alpha="0.35"
                     android:foreground="@android:drawable/ic_lock_idle_low_battery"
                     android:foregroundTint="#FFEB3B"
-                    android:scaleX="0.5"
+                    android:scaleX="0.6"
                     android:scaleY="0.95" />
 
             </LinearLayout>
@@ -615,14 +592,14 @@
 
                 <ImageView
                     android:id="@+id/fuelPressureImage"
-                    android:layout_width="120dp"
+                    android:layout_width="100dp"
                     android:layout_height="60dp"
                     android:layout_gravity="center"
                     android:layout_weight="0"
                     android:alpha="0.35"
                     android:foreground="@drawable/ic_fas_flask"
                     android:foregroundTint="#FFEB3B"
-                    android:scaleX="0.4"
+                    android:scaleX="0.5"
                     android:scaleY="0.90" />
 
             </LinearLayout>
@@ -650,14 +627,14 @@
 
                 <ImageView
                     android:id="@+id/coolantImage"
-                    android:layout_width="120dp"
+                    android:layout_width="100dp"
                     android:layout_height="60dp"
                     android:layout_gravity="center"
                     android:layout_weight="0"
                     android:alpha="0.35"
                     android:foreground="@drawable/ic_fas_thermometer_full"
                     android:foregroundTint="#FFEB3B"
-                    android:scaleX="0.3"
+                    android:scaleX="0.4"
                     android:scaleY="0.95" />
 
             </LinearLayout>
@@ -686,14 +663,14 @@
 
                 <ImageView
                     android:id="@+id/engineSpeedImage"
-                    android:layout_width="120dp"
+                    android:layout_width="100dp"
                     android:layout_height="60dp"
                     android:layout_gravity="center"
                     android:layout_weight="0"
                     android:alpha="0.35"
                     android:foreground="@drawable/ic_fab_steam"
                     android:foregroundTint="#FFEB3B"
-                    android:scaleX="0.46"
+                    android:scaleX="0.57"
                     android:scaleY="0.95" />
 
             </LinearLayout>

@@ -10,10 +10,14 @@ import static android.os.SystemClock.uptimeMillis;
 import android.Manifest;
 import android.app.AlertDialog;
 import android.app.PendingIntent;
+import android.bluetooth.BluetoothAdapter;
+import android.bluetooth.BluetoothDevice;
+import android.bluetooth.BluetoothSocket;
 import android.content.BroadcastReceiver;
 import android.content.Context;
 import android.content.Intent;
 import android.content.IntentFilter;
+import android.content.SharedPreferences;
 import android.content.pm.PackageManager;
 import android.content.res.ColorStateList;
 import android.graphics.Color;
@@ -32,11 +36,15 @@ import android.widget.ImageView;
 import android.widget.LinearLayout;
 import android.widget.ProgressBar;
 import android.widget.TextView;
+import android.widget.Toast;
+import android.widget.ViewSwitcher;
 
 import androidx.appcompat.app.AppCompatActivity;
 import androidx.core.app.ActivityCompat;
 import androidx.fragment.app.Fragment;
+import androidx.fragment.app.FragmentTransaction;
 
+import com.google.android.material.tabs.TabLayout;
 import com.hoho.android.usbserial.driver.UsbSerialDriver;
 import com.hoho.android.usbserial.driver.UsbSerialPort;
 import com.hoho.android.usbserial.driver.UsbSerialProber;
@@ -46,6 +54,7 @@ import java.io.File;
 import java.io.FileOutputStream;
 import java.io.FileWriter;
 import java.io.IOException;
+import java.io.InputStream;
 import java.text.SimpleDateFormat;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -53,6 +62,7 @@ import java.util.Date;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
+import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
 
 import com.example.http_file_server.HttpServerService;
@@ -60,8 +70,13 @@ import com.example.http_file_server.HttpServerService;
 public class MainActivity extends AppCompatActivity {
 
     private static final String ACTION_USB_PERMISSION = "com.android.example.a7_0project.USB_PERMISSION";
+    private static final UUID SPP_UUID = UUID.fromString("00001101-0000-1000-8000-00805F9B34FB");
+    private static final String PREFS_NAME = "BluetoothPrefs";
+    private static final String KEY_DEFAULT_DEVICE = "DefaultDeviceAddress";
 
     private UsbManager usbManager;
+    private BluetoothAdapter bluetoothAdapter;
+    private BluetoothSocket bluetoothSocket;
 
     //data that needs to be tracked across frames
     private long row;
@@ -76,8 +91,6 @@ public class MainActivity extends AppCompatActivity {
 
     private TextView label1;
     private TextView label2;
-    private TextView label3;
-    private TextView label4;
     private Button serial_button;
     private StringMessageBuilder currentMessageBuilder;
     private TextView RpmNumber;
@@ -108,11 +121,8 @@ public class MainActivity extends AppCompatActivity {
     private LocationListener locationListener;
     private double gps_speed = -1;
     private int LOCATION_REQUEST_CODE = 100;
-    private FileOutputStream logFile;
     private TextView ErrorNotif;
     private long errorTimestamp;
-    private TextView MessageCount;
-    private int messageCounter;
     private long ecu_speed_timestamp;
     public static boolean threadLock = false;
 
@@ -120,8 +130,6 @@ public class MainActivity extends AppCompatActivity {
     public static int log_timing = 100;
 
     private final WarningBundle[] warningObjects = new WarningBundle[9];
-
-    private StringBuilder stringBuilder;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -140,11 +148,8 @@ public class MainActivity extends AppCompatActivity {
         //get references to all the UI elements defined in layout.xml
         label1 = findViewById(R.id.label1);
         label2 = findViewById(R.id.label2);
-        label3 = findViewById(R.id.label3);
-        label4 = findViewById(R.id.label4);
         serial_button = findViewById(R.id.serial_button);
         ErrorNotif = findViewById(R.id.errorNotif);
-        MessageCount = findViewById(R.id.messageCount);
         RpmNumber = findViewById(R.id.rpmNumber);
         RpmNumber2 = findViewById(R.id.rpmNumber2);
         SpeedLabel = findViewById(R.id.speedLabel);
@@ -190,9 +195,8 @@ public class MainActivity extends AppCompatActivity {
 
         currentMessageBuilder = new StringMessageBuilder();
 
-        //request fine location permission
-
-        ActivityCompat.requestPermissions(this, new String[]{Manifest.permission.ACCESS_FINE_LOCATION},LOCATION_REQUEST_CODE);
+        //request fine location permission and bluetooth
+        ActivityCompat.requestPermissions(this, new String[]{Manifest.permission.ACCESS_FINE_LOCATION, Manifest.permission.BLUETOOTH_CONNECT, Manifest.permission.BLUETOOTH_SCAN}, LOCATION_REQUEST_CODE);
 
         //location manager object to start and stop tracking location
         locationManager = (LocationManager) getSystemService(LOCATION_SERVICE);
@@ -244,16 +248,33 @@ public class MainActivity extends AppCompatActivity {
 
         // Make the USB manager object to handle USB connections
         this.usbManager = (UsbManager) getSystemService(Context.USB_SERVICE);
+        this.bluetoothAdapter = BluetoothAdapter.getDefaultAdapter();
 
-//        Handler messageCountHandler = new Handler();
-//        messageCountHandler.postDelayed(new Runnable() {
-//            @Override
-//            public void run() {
-//                MessageCount.setText(String.format(Locale.ENGLISH, "%d", messageCounter));
-//                messageCounter = 0;
-//                messageCountHandler.postDelayed(this, 1000);
-//            }
-//        }, 1000);
+        serial_button.setOnClickListener(v -> {
+            BluetoothSelectFragment fragment = new BluetoothSelectFragment();
+            FragmentTransaction transaction = getSupportFragmentManager().beginTransaction();
+            transaction.replace(android.R.id.content, fragment);
+            transaction.addToBackStack(null);
+            transaction.commit();
+        });
+
+        TabLayout tabLayout = findViewById(R.id.tabLayout);
+        ViewSwitcher viewSwitcher = findViewById(R.id.viewSwitcher);
+
+        tabLayout.addOnTabSelectedListener(new TabLayout.OnTabSelectedListener() {
+            @Override
+            public void onTabSelected(TabLayout.Tab tab) {
+                viewSwitcher.setDisplayedChild(tab.getPosition());
+            }
+
+            @Override
+            public void onTabUnselected(TabLayout.Tab tab) {
+            }
+
+            @Override
+            public void onTabReselected(TabLayout.Tab tab) {
+            }
+        });
 
         label1.setText(getWifiIpAddress());
         IPAddress.setText("http://" + getWifiIpAddress() + ":8080");
@@ -261,13 +282,69 @@ public class MainActivity extends AppCompatActivity {
         Intent this_intent = getIntent();
         if (UsbManager.ACTION_USB_DEVICE_ATTACHED.equals(this_intent.getAction())) {
             Log.i("SSE", "Activity started by USB device attachment.");
-            // Your existing USB connection logic (e.g., auto_reconnect())
-            // should already be handling this if it's called in onCreate.
         }
 
         //start the auto_reconnect system which will handle setting up the initial connection
         auto_reconnect();
+        checkDefaultBluetoothDevice();
     }
+
+    private void checkDefaultBluetoothDevice() {
+        SharedPreferences prefs = getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE);
+        String address = prefs.getString(KEY_DEFAULT_DEVICE, null);
+        if (address != null && bluetoothAdapter != null) {
+            BluetoothDevice device = bluetoothAdapter.getRemoteDevice(address);
+            connectToBluetoothDevice(device);
+        }
+    }
+
+    public void connectToBluetoothDevice(BluetoothDevice device) {
+        if (ActivityCompat.checkSelfPermission(this, Manifest.permission.BLUETOOTH_CONNECT) != PackageManager.PERMISSION_GRANTED) {
+            return;
+        }
+        
+        new Thread(() -> {
+            try {
+                if (bluetoothSocket != null) {
+                    bluetoothSocket.close();
+                }
+                bluetoothSocket = device.createRfcommSocketToServiceRecord(SPP_UUID);
+                bluetoothSocket.connect();
+                runOnUiThread(() -> Toast.makeText(this, "Connected to " + device.getName(), Toast.LENGTH_SHORT).show());
+                startBluetoothReader();
+            } catch (IOException e) {
+                Log.e("SSE", "Bluetooth connection failed", e);
+                runOnUiThread(() -> Toast.makeText(this, "Bluetooth connection failed", Toast.LENGTH_SHORT).show());
+            }
+        }).start();
+    }
+
+    private void startBluetoothReader() {
+        new Thread(() -> {
+            try (InputStream inputStream = bluetoothSocket.getInputStream()) {
+                byte[] buffer = new byte[1024];
+                int bytes;
+                while (bluetoothSocket.isConnected()) {
+                    bytes = inputStream.read(buffer);
+                    if (bytes > 0) {
+                        byte[] data = Arrays.copyOf(buffer, bytes);
+                        runOnUiThread(() -> {
+                            for (byte b : data) {
+                                MessageBuilderState msgb_state = currentMessageBuilder.add(b);
+                                if (msgb_state == MessageBuilderState.COMPLETE) {
+                                    handle_complete_message(currentMessageBuilder.getMessage());
+                                }
+                            }
+                        });
+                    }
+                }
+            } catch (IOException e) {
+                Log.e("SSE", "Bluetooth read error", e);
+            }
+        }).start();
+    }
+
+
 
     @Override
     protected void onNewIntent(Intent intent) {
@@ -418,8 +495,6 @@ public class MainActivity extends AppCompatActivity {
             return;
         }
 
-        label4.setText("Connection successful!");
-
         UsbSerialPort port = driver.getPorts().get(0); // Most devices have just one port (port 0)
 
         try {
@@ -479,7 +554,7 @@ public class MainActivity extends AppCompatActivity {
             }
         } catch (Exception e) {
             RecordingButton.setBackgroundTintList(ColorStateList.valueOf(Color.BLUE));
-            Log.e("SSE", e.getMessage());
+            if (e.getMessage() != null) Log.e("SSE", e.getMessage());
         }
     }
 
@@ -618,7 +693,7 @@ public class MainActivity extends AppCompatActivity {
         }
     }
 
-    private class WarningBundle {
+    private static class WarningBundle {
         ImageView warningImage;
         TextView warningLabel;
         TextView number;
@@ -631,17 +706,6 @@ public class MainActivity extends AppCompatActivity {
             this.warningLabel = warningLabel;
             this.warningImage = warningImage;
         }
-    }
-
-    public void showError() {
-        ErrorNotif.setAlpha(1);
-        errorTimestamp = System.currentTimeMillis();
-        Handler errorExpire = new Handler();
-        errorExpire.postDelayed(() -> {
-            if (System.currentTimeMillis() - errorTimestamp > 1000) {
-                ErrorNotif.setAlpha(0.4F);
-            }
-        }, 1005);
     }
 
     public void pushAlert(String title, String message, String buttonText) {
@@ -877,7 +941,7 @@ public class MainActivity extends AppCompatActivity {
             "message_rec_bits"
     };
 
-    public class Message {
+    public static class Message {
         public int messageType;
         public int messageID;
         public long messageContent;
@@ -943,19 +1007,15 @@ public class MainActivity extends AppCompatActivity {
 
         public Message getMessage() {
             String result = stringBuilder.toString();
-            //label3.setText(result);
             String[] hexBytes = result.trim().split(" ");
-            //label4.setText(Arrays.toString(hexBytes));
-            //label1.setText(String.format(Locale.ENGLISH, "%d", hexBytes.length));
             try {
                 this.messageID = this.messageID | Integer.parseInt(hexBytes[0], 16);
                 for (int i = 1; i < hexBytes.length; i++) {
                     this.messageContent = this.messageContent << 8;
                     this.messageContent = this.messageContent | Integer.parseInt(hexBytes[i], 16);
                 }
-                //label2.setText(String.format(Locale.ENGLISH, "Good message found with ID %d", this.messageID));
             } catch (Exception e) {
-                //label1.setText(e.toString());
+                // Ignore parsing errors
             }
             if (state == MessageBuilderState.COMPLETE) {
                 return new Message(this.messageType, this.messageID, this.messageContent);
@@ -1020,72 +1080,5 @@ public class MainActivity extends AppCompatActivity {
             );
         }
         return "No Local IP Address";
-    }
-
-    class BinaryMessageBuilder {
-        int messageType;
-        int messageID;
-        long messageContent;
-        int remainingBytes;
-
-        private MessageBuilderState state;
-
-        public BinaryMessageBuilder() {
-            this.state = MessageBuilderState.WAITING;
-        }
-
-        MessageBuilderState add(byte b) {
-            switch (this.state) {
-                case WAITING:
-                    if ((char) b == '[') {
-                        this.state = MessageBuilderState.MESSAGE_TYPE;
-                        remainingBytes = 4;
-                    }
-                    break;
-                case MESSAGE_TYPE:
-                    if (remainingBytes > 0) {
-                        this.messageType = (this.messageType & b) << 8;
-                        remainingBytes--;
-                    } else if ((char) b == ']') {
-                        this.state = MessageBuilderState.MESSAGE_ID;
-                        this.remainingBytes = 4;
-                    } else {
-                        this.state = MessageBuilderState.WAITING;
-                    }
-                    break;
-                case MESSAGE_ID:
-                    if (remainingBytes > 0) {
-                        this.messageID = (this.messageID & b) << 8;
-                        remainingBytes--;
-                    } else {
-                        this.state = MessageBuilderState.MESSAGE_CONTENT;
-                        remainingBytes = 8;
-                    }
-                    break;
-                case MESSAGE_CONTENT:
-                    if (remainingBytes > 0) {
-                        this.messageContent = (this.messageContent & b) << 8;
-                        remainingBytes--;
-                    } else if ((char) b == '\n') {
-                        this.state = MessageBuilderState.COMPLETE;
-                    } else {
-                        this.state = MessageBuilderState.WAITING;
-                    }
-                    break;
-                case COMPLETE:
-                    Log.e("SSE", "Called add on complete message!");
-                    //throw new RuntimeException("Called add on complete message!\n");
-            }
-
-            return this.state;
-        }
-
-        public Message getMessage() {
-            if (state == MessageBuilderState.COMPLETE) {
-                return new Message(this.messageType, this.messageID, this.messageContent);
-            } else {
-                return null;
-            }
-        }
     }
 }

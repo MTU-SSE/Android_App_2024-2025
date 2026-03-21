@@ -31,18 +31,18 @@ import android.os.Bundle;
 import android.os.Handler;
 import android.util.Log;
 import android.view.View;
+import android.widget.ArrayAdapter;
 import android.widget.Button;
 import android.widget.ImageView;
-import android.widget.LinearLayout;
+import android.widget.ListView;
 import android.widget.ProgressBar;
 import android.widget.TextView;
 import android.widget.Toast;
-import android.widget.ViewSwitcher;
+import android.widget.ViewFlipper;
 
 import androidx.appcompat.app.AppCompatActivity;
 import androidx.core.app.ActivityCompat;
 import androidx.fragment.app.Fragment;
-import androidx.fragment.app.FragmentTransaction;
 
 import com.google.android.material.tabs.TabLayout;
 import com.hoho.android.usbserial.driver.UsbSerialDriver;
@@ -51,7 +51,6 @@ import com.hoho.android.usbserial.driver.UsbSerialProber;
 import com.hoho.android.usbserial.util.SerialInputOutputManager;
 
 import java.io.File;
-import java.io.FileOutputStream;
 import java.io.FileWriter;
 import java.io.IOException;
 import java.io.InputStream;
@@ -62,6 +61,7 @@ import java.util.Date;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
+import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
 
@@ -77,6 +77,7 @@ public class MainActivity extends AppCompatActivity {
     private UsbManager usbManager;
     private BluetoothAdapter bluetoothAdapter;
     private BluetoothSocket bluetoothSocket;
+    private boolean isBluetoothConnecting = false;
 
     //data that needs to be tracked across frames
     private long row;
@@ -91,7 +92,6 @@ public class MainActivity extends AppCompatActivity {
 
     private TextView label1;
     private TextView label2;
-    private Button serial_button;
     private StringMessageBuilder currentMessageBuilder;
     private TextView RpmNumber;
     private TextView RpmNumber2;
@@ -112,9 +112,17 @@ public class MainActivity extends AppCompatActivity {
     private TextView Latitude;
     private TextView Longitude;
     private TextView IPAddress;
+    private TextView rawBluetoothData;
 
-    private LinearLayout DriverView;
-    private LinearLayout StatsView;
+    private View DriverView;
+    private View StatsView;
+
+    // Bluetooth UI components (now integrated into main activity)
+    private ListView deviceList;
+    private Button refreshButton;
+    private ArrayList<String> deviceNames = new ArrayList<>();
+    private ArrayList<BluetoothDevice> devices = new ArrayList<>();
+    private ArrayAdapter<String> adapter;
 
     private SerialInputOutputManager usbIoManager;
     private LocationManager locationManager;
@@ -142,13 +150,11 @@ public class MainActivity extends AppCompatActivity {
         //hide the home button, notification bar, and that weird bar with the app name
         hideSystemUI();
 
-        //no clue, maybe show what's in layout.xml?
         setContentView(R.layout.layout);
 
-        //get references to all the UI elements defined in layout.xml
+        //get references to all the UI elements
         label1 = findViewById(R.id.label1);
         label2 = findViewById(R.id.label2);
-        serial_button = findViewById(R.id.serial_button);
         ErrorNotif = findViewById(R.id.errorNotif);
         RpmNumber = findViewById(R.id.rpmNumber);
         RpmNumber2 = findViewById(R.id.rpmNumber2);
@@ -169,8 +175,26 @@ public class MainActivity extends AppCompatActivity {
         Latitude = findViewById(R.id.latitudeNumber);
         Longitude = findViewById(R.id.longitudeNumber);
         IPAddress = findViewById(R.id.IPAddrNumber);
+        rawBluetoothData = findViewById(R.id.raw_bluetooth_data);
         DriverView = findViewById(R.id.driver_view);
         StatsView = findViewById(R.id.stats_view);
+
+        // Bluetooth Setup
+        deviceList = findViewById(R.id.device_list);
+        refreshButton = findViewById(R.id.refresh_button);
+        adapter = new ArrayAdapter<>(this, android.R.layout.simple_list_item_1, deviceNames);
+        if (deviceList != null) {
+            deviceList.setAdapter(adapter);
+            deviceList.setOnItemClickListener((parent, view, position, id) -> {
+                BluetoothDevice selectedDevice = devices.get(position);
+                saveDefaultDevice(selectedDevice.getAddress());
+                connectToBluetoothDevice(selectedDevice);
+                Toast.makeText(this, "Selected: " + selectedDevice.getName(), Toast.LENGTH_SHORT).show();
+            });
+        }
+        if (refreshButton != null) {
+            refreshButton.setOnClickListener(v -> listPairedDevices());
+        }
 
         warningObjects[0] = new WarningBundle(
                 findViewById(R.id.coolantImage),
@@ -205,96 +229,102 @@ public class MainActivity extends AppCompatActivity {
         log_file_write_handler.postDelayed(new Runnable() {
             @Override
             public void run() {
-
-                IPAddress.setText("http://" + getWifiIpAddress() + ":8080");
-
+                if (IPAddress != null) IPAddress.setText("http://" + getWifiIpAddress() + ":8080");
                 if (race_start_timestamp != 0) {
                     append_csv();
                 }
-                //clear the data object
                 data_frame.clear();
                 log_file_write_handler.postDelayed(this, log_timing);
             }
         }, log_timing);
 
-        //define a location listener (what code to run when the location updates)
+        //define a location listener
         locationListener = location -> {
             double lat = location.getLatitude();
             double lon = location.getLongitude();
             gps_speed = location.getSpeed();
             double time_millis = location.getTime();
             data_frame.put("gps_time", time_millis);
-            Latitude.setText(String.format(Locale.ENGLISH, "%.4f", lat));
+            if (Latitude != null) Latitude.setText(String.format(Locale.ENGLISH, "%.4f", lat));
             data_frame.put("gps_latitude", String.format(Locale.ENGLISH, "%.4f", lat));
-            Longitude.setText(String.format(Locale.ENGLISH, "%.4f", lon));
+            if (Longitude != null) Longitude.setText(String.format(Locale.ENGLISH, "%.4f", lon));
             data_frame.put("gps_longitude", String.format(Locale.ENGLISH, "%.4f", lon));
-            GPSSpeed.setText(String.format(Locale.ENGLISH, "%.2f", gps_speed));
+            if (GPSSpeed != null) GPSSpeed.setText(String.format(Locale.ENGLISH, "%.2f", gps_speed));
             data_frame.put("gps_speed", gps_speed);
             if ((uptimeMillis() - ecu_speed_timestamp) > 500) {
-                SpeedLabel.setTextColor(Color.CYAN);
+                if (SpeedLabel != null) SpeedLabel.setTextColor(Color.CYAN);
                 handleSpeed(gps_speed * 2.23693629);
             }
         };
 
-        //serial_button.setOnClickListener(v -> startGPSTracking());
         BurnOrCoast.setOnClickListener(v -> toggleStatsView());
         startGPSTracking();
 
-        //TODO: make starter button lap button
         RecordingButton.setOnClickListener(v -> temp_logging_start());
-        //add more data from ecu and stuff
-        //test on phone
-        //update documentation to be clear about data formats???
 
-        // Make the USB manager object to handle USB connections
         this.usbManager = (UsbManager) getSystemService(Context.USB_SERVICE);
         this.bluetoothAdapter = BluetoothAdapter.getDefaultAdapter();
 
-        serial_button.setOnClickListener(v -> {
-            BluetoothSelectFragment fragment = new BluetoothSelectFragment();
-            FragmentTransaction transaction = getSupportFragmentManager().beginTransaction();
-            transaction.replace(android.R.id.content, fragment);
-            transaction.addToBackStack(null);
-            transaction.commit();
-        });
-
         TabLayout tabLayout = findViewById(R.id.tabLayout);
-        ViewSwitcher viewSwitcher = findViewById(R.id.viewSwitcher);
+        ViewFlipper viewFlipper = findViewById(R.id.viewSwitcher);
 
         tabLayout.addOnTabSelectedListener(new TabLayout.OnTabSelectedListener() {
             @Override
             public void onTabSelected(TabLayout.Tab tab) {
-                viewSwitcher.setDisplayedChild(tab.getPosition());
+                if (viewFlipper != null) {
+                    viewFlipper.setDisplayedChild(tab.getPosition());
+                }
             }
 
             @Override
-            public void onTabUnselected(TabLayout.Tab tab) {
-            }
+            public void onTabUnselected(TabLayout.Tab tab) {}
 
             @Override
-            public void onTabReselected(TabLayout.Tab tab) {
-            }
+            public void onTabReselected(TabLayout.Tab tab) {}
         });
 
-        label1.setText(getWifiIpAddress());
-        IPAddress.setText("http://" + getWifiIpAddress() + ":8080");
+        if (label1 != null) label1.setText(getWifiIpAddress());
+        if (IPAddress != null) IPAddress.setText("http://" + getWifiIpAddress() + ":8080");
 
         Intent this_intent = getIntent();
         if (UsbManager.ACTION_USB_DEVICE_ATTACHED.equals(this_intent.getAction())) {
             Log.i("SSE", "Activity started by USB device attachment.");
         }
 
-        //start the auto_reconnect system which will handle setting up the initial connection
         auto_reconnect();
-        checkDefaultBluetoothDevice();
+        startBluetoothAutoConnect();
+        listPairedDevices();
+    }
+
+    private void startBluetoothAutoConnect() {
+        final Handler handler = new Handler();
+        handler.postDelayed(new Runnable() {
+            @Override
+            public void run() {
+                checkDefaultBluetoothDevice();
+                handler.postDelayed(this, 500); // Check every 2 seconds
+            }
+        }, 500);
     }
 
     private void checkDefaultBluetoothDevice() {
+        if (bluetoothAdapter == null || !bluetoothAdapter.isEnabled()) {
+            return;
+        }
+
+        if (isBluetoothConnecting || (bluetoothSocket != null && bluetoothSocket.isConnected())) {
+            return;
+        }
+
         SharedPreferences prefs = getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE);
         String address = prefs.getString(KEY_DEFAULT_DEVICE, null);
-        if (address != null && bluetoothAdapter != null) {
-            BluetoothDevice device = bluetoothAdapter.getRemoteDevice(address);
-            connectToBluetoothDevice(device);
+        if (address != null) {
+            try {
+                BluetoothDevice device = bluetoothAdapter.getRemoteDevice(address);
+                connectToBluetoothDevice(device);
+            } catch (IllegalArgumentException e) {
+                Log.e("SSE", "Invalid Bluetooth address: " + address);
+            }
         }
     }
 
@@ -302,19 +332,32 @@ public class MainActivity extends AppCompatActivity {
         if (ActivityCompat.checkSelfPermission(this, Manifest.permission.BLUETOOTH_CONNECT) != PackageManager.PERMISSION_GRANTED) {
             return;
         }
+
+        if (isBluetoothConnecting) return;
+        isBluetoothConnecting = true;
         
         new Thread(() -> {
+            BluetoothSocket tempSocket = null;
             try {
-                if (bluetoothSocket != null) {
-                    bluetoothSocket.close();
+                tempSocket = device.createRfcommSocketToServiceRecord(SPP_UUID);
+                tempSocket.connect();
+                
+                synchronized (this) {
+                    if (bluetoothSocket != null) {
+                        try { bluetoothSocket.close(); } catch (IOException ignored) {}
+                    }
+                    bluetoothSocket = tempSocket;
                 }
-                bluetoothSocket = device.createRfcommSocketToServiceRecord(SPP_UUID);
-                bluetoothSocket.connect();
+                
+                isBluetoothConnecting = false;
                 runOnUiThread(() -> Toast.makeText(this, "Connected to " + device.getName(), Toast.LENGTH_SHORT).show());
                 startBluetoothReader();
             } catch (IOException e) {
-                Log.e("SSE", "Bluetooth connection failed", e);
-                runOnUiThread(() -> Toast.makeText(this, "Bluetooth connection failed", Toast.LENGTH_SHORT).show());
+                isBluetoothConnecting = false;
+                if (tempSocket != null) {
+                    try { tempSocket.close(); } catch (IOException ignored) {}
+                }
+                Log.d("SSE", "Bluetooth connection failed (device probably off)");
             }
         }).start();
     }
@@ -324,11 +367,15 @@ public class MainActivity extends AppCompatActivity {
             try (InputStream inputStream = bluetoothSocket.getInputStream()) {
                 byte[] buffer = new byte[1024];
                 int bytes;
-                while (bluetoothSocket.isConnected()) {
+                while (bluetoothSocket != null && bluetoothSocket.isConnected()) {
                     bytes = inputStream.read(buffer);
+                    if (bytes == -1) break;
                     if (bytes > 0) {
                         byte[] data = Arrays.copyOf(buffer, bytes);
                         runOnUiThread(() -> {
+                            if (rawBluetoothData != null) {
+                                rawBluetoothData.setText(Arrays.toString(data));
+                            }
                             for (byte b : data) {
                                 MessageBuilderState msgb_state = currentMessageBuilder.add(b);
                                 if (msgb_state == MessageBuilderState.COMPLETE) {
@@ -340,18 +387,54 @@ public class MainActivity extends AppCompatActivity {
                 }
             } catch (IOException e) {
                 Log.e("SSE", "Bluetooth read error", e);
+            } finally {
+                synchronized (this) {
+                    if (bluetoothSocket != null) {
+                        try { bluetoothSocket.close(); } catch (IOException ignored) {}
+                        bluetoothSocket = null;
+                    }
+                }
             }
         }).start();
     }
 
+    private void listPairedDevices() {
+        if (bluetoothAdapter == null) {
+            Toast.makeText(this, "Bluetooth not supported", Toast.LENGTH_SHORT).show();
+            return;
+        }
 
+        if (ActivityCompat.checkSelfPermission(this, Manifest.permission.BLUETOOTH_CONNECT) != PackageManager.PERMISSION_GRANTED) {
+            return;
+        }
+
+        Set<BluetoothDevice> pairedDevices = bluetoothAdapter.getBondedDevices();
+        deviceNames.clear();
+        devices.clear();
+
+        if (pairedDevices.size() > 0) {
+            for (BluetoothDevice device : pairedDevices) {
+                deviceNames.add(device.getName() + "\n" + device.getAddress());
+                devices.add(device);
+            }
+        } else {
+            deviceNames.add("No paired devices found");
+        }
+        if (adapter != null) {
+            adapter.notifyDataSetChanged();
+        }
+    }
+
+    private void saveDefaultDevice(String address) {
+        SharedPreferences prefs = getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE);
+        prefs.edit().putString(KEY_DEFAULT_DEVICE, address).apply();
+    }
 
     @Override
     protected void onNewIntent(Intent intent) {
         super.onNewIntent(intent);
-        setIntent(intent); // Important to update the Activity's intent
+        setIntent(intent);
         if (UsbManager.ACTION_USB_DEVICE_ATTACHED.equals(intent.getAction())) {
-            // USB device was attached while Activity was running
             Log.i("SSE", "USB device attached while Activity is running.");
             if (usbIoManager == null || usbIoManager.getState() == SerialInputOutputManager.State.STOPPED) {
                 auto_reconnect();
@@ -359,7 +442,6 @@ public class MainActivity extends AppCompatActivity {
         }
     }
 
-    //immediately hide UI whenever anything happens
     @Override
     public void onWindowFocusChanged(boolean hasFocus) {
         super.onWindowFocusChanged(hasFocus);
@@ -372,33 +454,24 @@ public class MainActivity extends AppCompatActivity {
     protected void onResume() {
         super.onResume();
         hideSystemUI();
-        // Register the receiver to listen for USB permission responses
         IntentFilter filter = new IntentFilter(ACTION_USB_PERMISSION);
-        // Add the RECEIVER_NOT_EXPORTED flag as the third argument
         registerReceiver(usbPermissionReceiver, filter, RECEIVER_NOT_EXPORTED);
     }
 
     @Override
     protected void onPause() {
         super.onPause();
-        // Unregister the receiver when the app is paused
         unregisterReceiver(usbPermissionReceiver);
     }
 
-    // Add this BroadcastReceiver to your MainActivity class members
     private final BroadcastReceiver usbPermissionReceiver = new BroadcastReceiver() {
         public void onReceive(Context context, Intent intent) {
             String action = intent.getAction();
             if (ACTION_USB_PERMISSION.equals(action)) {
-                // We are using a Handler, so we don't need to lock (synchronized)
-                // The broadcast is received, check if permission was granted
                 if (intent.getBooleanExtra(UsbManager.EXTRA_PERMISSION_GRANTED, false)) {
                     Log.i("SSE", "USB permission GRANTED by user.");
-                    // Permission granted. Now, find the device and try to connect.
                     UsbDevice device = intent.getParcelableExtra(UsbManager.EXTRA_DEVICE);
                     if (device != null) {
-                        // Call a method that specifically handles the connection logic
-                        // This separates the connection logic from the permission request
                         try_to_connect_after_permission(device);
                     }
                 } else {
@@ -409,63 +482,43 @@ public class MainActivity extends AppCompatActivity {
         }
     };
 
-    /**
-     * If there is no USB connection, keep retrying every DELAY ms to establish one.
-     */
     private void auto_reconnect() {
-        label1.setText("Attempting autoreconnect...");
+        if (label1 != null) label1.setText("Attempting autoreconnect...");
         final Handler handler = new Handler();
-        //delay in milliseconds
         final int delay = 100;
 
         handler.postDelayed(new Runnable() {
             public void run() {
-                Log.i("SSE", "Autoreconnect handler running...");
-                label2.setText("Checking for USB device...");
+                if (label2 != null) label2.setText("Checking for USB device...");
 
-                // Check if already connected
                 if (usbIoManager != null && usbIoManager.getState() != SerialInputOutputManager.State.STOPPED) {
-                    Log.i("SSE", "Already connected. Stopping autoreconnect.");
-                    label1.setText("Connected");
-                    return; // Stop the handler
-                }
-
-                if (usbManager.getDeviceList().isEmpty()) {
-                    Log.i("SSE", "No USB devices found. Retrying...");
-                    label2.setText("No device found, trying again...");
-                    handler.postDelayed(this, delay); // Retry
+                    if (label1 != null) label1.setText("Connected");
                     return;
                 }
 
-                // Get the first device
+                if (usbManager.getDeviceList().isEmpty()) {
+                    if (label2 != null) label2.setText("No device found, trying again...");
+                    handler.postDelayed(this, delay);
+                    return;
+                }
+
                 UsbDevice device = usbManager.getDeviceList().values().iterator().next();
 
                 if (usbManager.hasPermission(device)) {
-                    Log.i("SSE", "Permission already granted. Connecting...");
-                    label2.setText("Permission OK. Connecting...");
-                    try_to_connect_after_permission(device); // Connect directly
+                    if (label2 != null) label2.setText("Permission OK. Connecting...");
+                    try_to_connect_after_permission(device);
                 } else {
-                    Log.i("SSE", "Permission not granted. Requesting...");
-                    label2.setText("Requesting USB permission...");
-                    // Request permission. The BroadcastReceiver will handle the result.
+                    if (label2 != null) label2.setText("Requesting USB permission...");
                     PendingIntent permissionIntent = PendingIntent.getBroadcast(
                             MainActivity.this, 0, new Intent(ACTION_USB_PERMISSION), PendingIntent.FLAG_IMMUTABLE
                     );
                     usbManager.requestPermission(device, permissionIntent);
-                    // Do NOT try to connect here. Wait for the receiver.
                 }
-
-                // The handler will run again to check status, but will exit at the top if connected.
                 handler.postDelayed(this, delay);
             }
         }, delay);
     }
 
-    /**
-     * The main connection logic. Should only be called AFTER permission is granted.
-     *
-     * @param device The UsbDevice to connect to.
-     */
     private void try_to_connect_after_permission(UsbDevice device) {
         List<UsbSerialDriver> availableDrivers = UsbSerialProber.getDefaultProber().findAllDrivers(usbManager);
         if (availableDrivers.isEmpty()) {
@@ -473,7 +526,6 @@ public class MainActivity extends AppCompatActivity {
             return;
         }
 
-        // Find the driver for our specific device
         UsbSerialDriver driver = null;
         for (UsbSerialDriver d : availableDrivers) {
             if (d.getDevice().equals(device)) {
@@ -490,17 +542,14 @@ public class MainActivity extends AppCompatActivity {
 
         UsbDeviceConnection connection = usbManager.openDevice(driver.getDevice());
         if (connection == null) {
-            Log.e("SSE", "usbManager.openDevice() failed. This can happen if the device is disconnected.");
-            // We don't push an alert here because auto_reconnect will try again.
             return;
         }
 
-        UsbSerialPort port = driver.getPorts().get(0); // Most devices have just one port (port 0)
+        UsbSerialPort port = driver.getPorts().get(0);
 
         try {
             port.open(connection);
             port.setParameters(115200, 8, UsbSerialPort.STOPBITS_1, UsbSerialPort.PARITY_NONE);
-            //port.setParameters(9600, 8, UsbSerialPort.STOPBITS_1, UsbSerialPort.PARITY_NONE);
         } catch (IOException e) {
             throw new RuntimeException(e);
         }
@@ -513,16 +562,10 @@ public class MainActivity extends AppCompatActivity {
         @Override
         public void onNewData(byte[] data) {
             runOnUiThread(() -> {
-//                if (threadLock) {
-//                    pushAlert("ERROR", "Threadlock violated", "darn");
-//                }
-                //threadLock = true;
                 try {
-                    //Log.v("SSE", "New data encountered");
                     for (byte b : data) {
                         MessageBuilderState msgb_state = currentMessageBuilder.add(b);
                         if (msgb_state == MessageBuilderState.COMPLETE) {
-                            Log.v("mes", currentMessageBuilder.stringBuilder.toString());
                             handle_complete_message(currentMessageBuilder.getMessage());
                         }
                     }
@@ -545,44 +588,34 @@ public class MainActivity extends AppCompatActivity {
         try {
             if (race_start_timestamp == 0) {
                 create_csv();
-                SpeedLabel.setTextColor(Color.RED);
+                if (SpeedLabel != null) SpeedLabel.setTextColor(Color.RED);
                 race_start_timestamp = System.currentTimeMillis();
             }
             else {
-                RecordingButton.setBackgroundTintList(ColorStateList.valueOf(Color.parseColor("#541414")));
+                if (RecordingButton != null) RecordingButton.setBackgroundTintList(ColorStateList.valueOf(Color.parseColor("#541414")));
                 race_start_timestamp = 0;
             }
         } catch (Exception e) {
-            RecordingButton.setBackgroundTintList(ColorStateList.valueOf(Color.BLUE));
+            if (RecordingButton != null) RecordingButton.setBackgroundTintList(ColorStateList.valueOf(Color.BLUE));
             if (e.getMessage() != null) Log.e("SSE", e.getMessage());
         }
     }
 
     private void handle_complete_message(Message message) {
         try {
-            //serialButton.setBackgroundColor(Color.GREEN);
             currentMessageBuilder = new StringMessageBuilder();
-            if (message == null) {
-                Log.e("SSE", "getMessage called on unfinished message object");
-                //pushAlert("bad news", "someone (not naming names) (john) Called getMessage on an unfinished message object", "oopsies");
-            } else {
+            if (message != null) {
                 switch (message.messageID) {
-                    //my custom data
-                    //case 0x001:
-
                     case 0x640:
                         int rpm = message.getContentVariable(0, 16);
-                        RpmNumber.setText(String.format(Locale.ENGLISH, "%d", rpm));
-                        RpmNumber2.setText(String.format(Locale.ENGLISH, "%d", rpm));
-                        //engine indicator enabled if rpm is above 1600
-                        EngineIndicator.setBackgroundTintList(ColorStateList.valueOf( rpm > 1600 ? Color.GREEN :Color.RED));
-                        //starter indicator enabled if rpm is between 100 and 1500
-                        StarterIndicator.setBackgroundTintList(ColorStateList.valueOf( rpm > 100 && rpm < 1500 ? Color.GREEN :Color.RED));
+                        if (RpmNumber != null) RpmNumber.setText(String.format(Locale.ENGLISH, "%d", rpm));
+                        if (RpmNumber2 != null) RpmNumber2.setText(String.format(Locale.ENGLISH, "%d", rpm));
+                        if (EngineIndicator != null) EngineIndicator.setBackgroundTintList(ColorStateList.valueOf( rpm > 1600 ? Color.GREEN :Color.RED));
+                        if (StarterIndicator != null) StarterIndicator.setBackgroundTintList(ColorStateList.valueOf( rpm > 100 && rpm < 1500 ? Color.GREEN :Color.RED));
                         break;
                     case 0x641:
-                        //convert from 0.1kPa to 1 kPa
                         int fuelPressure = message.getContentVariable(32, 16) / 10;
-                        FuelPressure.setText(String.format(Locale.ENGLISH, "%d kPa", fuelPressure));
+                        if (FuelPressure != null) FuelPressure.setText(String.format(Locale.ENGLISH, "%d kPa", fuelPressure));
                         data_frame.put("fuel_pressure", String.format("%d", fuelPressure));
                         int fuelInjectorTiming = message.getContentVariable(48, 8);
                         data_frame.put("fuel_injector_timing", String.format("%d", fuelInjectorTiming));
@@ -593,34 +626,19 @@ public class MainActivity extends AppCompatActivity {
                         int engineLoad = message.getContentVariable(16, 16);
                         data_frame.put("engine_load", String.format("%d", engineLoad));
                         break;
-                        //no wheelspeed data from these
-                        /*
-                    case 0x648:
-                        double wheelSpeedfl = message.getContentVariable(0, 16) / 10.0;
-                        double wheelSpeedfr = message.getContentVariable(16, 16) / 10.0;
-                        double wheelSpeedbl = message.getContentVariable(32, 16) / 10.0;
-                        double wheelSpeedbr = message.getContentVariable(48, 16) / 10.0;
-                        data_frame.put("wheel_speed_ecu", String.format("%.1f", wheelSpeedfl));
-                        data_frame.put("acceleration_lateral", String.format("%.1f", wheelSpeedfr));
-                        data_frame.put("acceleration_longitudinal", String.format("%.1f", wheelSpeedbl));
-                        data_frame.put("acceleration_vertical", String.format("%.1f", wheelSpeedbr));
-                        break;
-                        */
                     case 0x649:
                         int engineOilTemp = message.getContentVariable(8, 8) - 40;
                         data_frame.put("oil_temp", String.format("%d", engineOilTemp));
-                        //convert from 0.1 volts to 1 volts
                         float voltage = message.getContentVariable(40, 8) / (float) 10;
-                        VoltageNumber.setText(String.format(Locale.ENGLISH, "%.1f V", voltage));
+                        if (VoltageNumber != null) VoltageNumber.setText(String.format(Locale.ENGLISH, "%.1f V", voltage));
                         data_frame.put("battery_voltage", String.format("%.1f", voltage));
                         if (voltage < 10.5) {
-                            warningObjects[5].timestamp = System.currentTimeMillis();
+                            if (warningObjects[5] != null) warningObjects[5].timestamp = System.currentTimeMillis();
                         }
                         break;
                     case 0x64c:
                         for (int i = 0; i < 9; i++) {
                             if (message.getContentVariable(40 + i, 1) == 1) {
-                                //warningObjects[i].warningLabel.setTextColor(Color.BLUE);
                                 if (warningObjects[i] != null) {
                                     warningObjects[i].timestamp = System.currentTimeMillis();
                                 }
@@ -628,67 +646,60 @@ public class MainActivity extends AppCompatActivity {
                         }
                         break;
                     case 0x460:
-                        //filter for the right message based on this chart
-                        //https://www.manualslib.com/manual/1417922/Motec-Ltc.html?page=39#manual
                         if (message.getContentVariable(0, 8) == 0) {
-                            //convert from 0.001 lambda to 1 lambda
                             double lambda = message.getContentVariable(8, 16) / 1000.0;
-                            LambdaNumber.setText(String.format(Locale.ENGLISH, "%4.3f", lambda));
+                            if (LambdaNumber != null) LambdaNumber.setText(String.format(Locale.ENGLISH, "%4.3f", lambda));
                         }
                         break;
                     case 0x118:
-                        //convert from 1 kmh to mph
                         double ecu_speed = (message.getContentVariable(16, 8) * 0.6213712);
-                        SpeedLabel.setTextColor(Color.GREEN);
+                        if (SpeedLabel != null) SpeedLabel.setTextColor(Color.GREEN);
                         handleSpeed(ecu_speed);
                         int throttlePosition = message.getContentVariable(8, 8);
-                        ThrottlePositionBar.setProgress(throttlePosition);
+                        if (ThrottlePositionBar != null) ThrottlePositionBar.setProgress(throttlePosition);
                         data_frame.put("throttle_position", String.format(Locale.ENGLISH, "%d", throttlePosition));
                         int coolant_temp = message.getContentVariable(24, 8);
-                        CoolantTemperature.setText(String.format(Locale.ENGLISH, "%d C", coolant_temp));
+                        if (CoolantTemperature != null) CoolantTemperature.setText(String.format(Locale.ENGLISH, "%d C", coolant_temp));
                         break;
                 }
-
                 handle_warnings();
             }
-        }
-        catch (Exception e) {
+        } catch (Exception e) {
             Log.e("SSE", "Complete message error", e);
         }
     }
 
     public void handleSpeed(double vehicle_speed) {
-        SpeedNumber.setText(String.format(Locale.ENGLISH, "%.1f", vehicle_speed));
-        SpeedNumber2.setText(String.format(Locale.ENGLISH, "%.1f", vehicle_speed));
-        RedlineIndicator.setProgress((int) (vehicle_speed * 10));
-        RedlineIndicator.setProgressTintList(ColorStateList.valueOf(vehicle_speed > 26 || vehicle_speed < 10 ? Color.RED : Color.YELLOW));
-        if (vehicle_speed < 24 || vehicle_speed > 13) {
-            RedlineIndicator.setProgressTintList(ColorStateList.valueOf(Color.GREEN));
+        if (SpeedNumber != null) SpeedNumber.setText(String.format(Locale.ENGLISH, "%.1f", vehicle_speed));
+        if (SpeedNumber2 != null) SpeedNumber2.setText(String.format(Locale.ENGLISH, "%.1f", vehicle_speed));
+        if (RedlineIndicator != null) {
+            RedlineIndicator.setProgress((int) (vehicle_speed * 10));
+            RedlineIndicator.setProgressTintList(ColorStateList.valueOf(vehicle_speed > 26 || vehicle_speed < 10 ? Color.RED : Color.YELLOW));
+            if (vehicle_speed < 24 || vehicle_speed > 13) {
+                RedlineIndicator.setProgressTintList(ColorStateList.valueOf(Color.GREEN));
+            }
         }
-        if (vehicle_speed > 24) {
-            BurnOrCoast.setText("Coast!");
-            BurnOrCoast.setTextColor(Color.GREEN);
-        }
-        if (vehicle_speed < 13) {
-            BurnOrCoast.setText("Burn!");
-            BurnOrCoast.setTextColor(Color.RED);
+        if (BurnOrCoast != null) {
+            if (vehicle_speed > 24) {
+                BurnOrCoast.setText("Coast!");
+                BurnOrCoast.setTextColor(Color.GREEN);
+            }
+            if (vehicle_speed < 13) {
+                BurnOrCoast.setText("Burn!");
+                BurnOrCoast.setTextColor(Color.RED);
+            }
         }
     }
 
     public void handle_warnings() {
         for (WarningBundle bundle : warningObjects) {
-            //make sure this is a warning we can display
             if (bundle != null) {
                 boolean active = (System.currentTimeMillis() - bundle.timestamp) < 6000;
                 boolean flashedOn = ((System.currentTimeMillis() - bundle.timestamp) % 1000 < 650) && active;
-                //CoolantTemperature.setText(String.format(Locale.ENGLISH, "%d", (System.currentTimeMillis() - bundle.timestamp)));
-                bundle.warningImage.setAlpha((float) (flashedOn ? 1.0 : 0.2));
-                bundle.warningLabel.setAlpha((float) (flashedOn ? 1.0 : 0.2));
-                bundle.number.setTextColor(active ? Color.RED : Color.GREEN);
-                bundle.label.setTextColor(active ? Color.RED : Color.GREEN);
-
-//                bundle.warningImage.setForegroundTintList(ColorStateList.valueOf(flashedOn ? Color.RED : Color.GREEN));
-//                bundle.warningLabel.setTextColor(flashedOn ? Color.RED : Color.GREEN);
+                if (bundle.warningImage != null) bundle.warningImage.setAlpha((float) (flashedOn ? 1.0 : 0.2));
+                if (bundle.warningLabel != null) bundle.warningLabel.setAlpha((float) (flashedOn ? 1.0 : 0.2));
+                if (bundle.number != null) bundle.number.setTextColor(active ? Color.RED : Color.GREEN);
+                if (bundle.label != null) bundle.label.setTextColor(active ? Color.RED : Color.GREEN);
             }
         }
     }
@@ -709,37 +720,20 @@ public class MainActivity extends AppCompatActivity {
     }
 
     public void pushAlert(String title, String message, String buttonText) {
-        // Create the object of AlertDialog Builder class
         AlertDialog.Builder builder = new AlertDialog.Builder(MainActivity.this);
-        // Set the message show for the Alert time
         builder.setMessage(message);
-        // Set Alert Title
         builder.setTitle(title);
         builder.setCancelable(true);
-        // Set the Negative button with No name Lambda
-        // OnClickListener method is use of DialogInterface interface.
-        builder.setNegativeButton(buttonText, (dialog, which) -> {
-            // If user click no then dialog box is canceled.
-            dialog.cancel();
-        });
-        // Create the Alert dialog
+        builder.setNegativeButton(buttonText, (dialog, which) -> dialog.cancel());
         AlertDialog alertDialog = builder.create();
-        // Show the Alert Dialog box
         alertDialog.show();
     }
 
-    /**
-     * Creates a new CSV file in the app's internal storage directory,
-     * named with the current timestamp, and writes the headers.
-     */
     private void create_csv() {
         SimpleDateFormat sdf = new SimpleDateFormat("yyyy-MM-dd__HH-mm-ss", Locale.getDefault());
         String filename = sdf.format(new Date()) + ".csv";
-
         File directory = getFilesDir();
         this.current_file = new File(directory, filename);
-
-        //use this opportunity to set/reset the persistent variables like lap_number
         this.lap_number = 0;
         this.row = 0;
         this.distance = 0;
@@ -749,209 +743,62 @@ public class MainActivity extends AppCompatActivity {
 
         try (FileWriter writer = new FileWriter(this.current_file)) {
             String headerLine = String.join(",", csv_headers);
-
             writer.write(headerLine);
             writer.write("\n");
             writer.flush();
-
             Log.i("SSE", "Successfully created and wrote headers to " + this.current_file.getName());
         } catch (IOException e) {
             Log.e("SSE", "Error writing to CSV file", e);
         }
     }
 
-    /**
-     * Appends the current state of telemetry data as a new row to a CSV file.
-     * This method assumes create_csv has already been called to create the file and its headers.
-     */
     private void append_csv() {
-        // Find the most recently created file. This is a simple approach.
-        // For long-running apps, you might want to store the fileName in a member variable.
-
-        if (this.current_file == null) {
-            Log.e("SSE", "No CSV file found to append to. Call create_csv() first.");
-            return;
-        }
-
-        //some data like timers need to be added right now as there isn't a better place
+        if (this.current_file == null) return;
         data_frame.put("unix_timestamp", System.currentTimeMillis());
         data_frame.put("lap_unix_timestamp", System.currentTimeMillis() - this.lap_start_timestamp);
         data_frame.put("row", row++);
-
-        //other persistent data like the lap count also needs to be added now
         data_frame.put("lap", lap_number);
         data_frame.put("distance", distance);
 
-
-        // Use try-with-resources and pass 'true' to FileWriter to enable append mode.
         try (FileWriter writer = new FileWriter(this.current_file, true)) {
-            // This list will hold the values in the correct order for the CSV row.
             List<String> rowValues = new ArrayList<>();
-
-            // Iterate through the master list of headers. This defines the column order.
             for (String header : csv_headers) {
-                // Get the value from our map.
                 Object value = this.data_frame.get(header);
-
-                // If the value exists, convert it to a string.
-                // If it's null (never set), add an empty string to the CSV.
                 if (value != null) {
                     if (value instanceof Double || value instanceof Float) {
                         rowValues.add(String.format(Locale.ENGLISH,"%.2f", value));
-                    }
-                    else {
+                    } else {
                         rowValues.add(value.toString());
                     }
                 } else {
-                    rowValues.add(""); // Represents a "null" or missing value in the CSV
+                    rowValues.add("");
                 }
             }
-
-            // Join the ordered values with commas and write the line to the file.
             writer.write(String.join(",", rowValues));
-            writer.write("\n"); // Add a newline for the next row
-            //write it out NOW so that it doesn't get borked if it crashes or smth
+            writer.write("\n");
             writer.flush();
-
         } catch (IOException e) {
             Log.e("SSE", "Error appending data to CSV file", e);
         }
     }
 
-    /**
-     * NOTE: The actual sample time of any given data point here is potentially off by as much as 1 second
-     * when compared to the timestamp for that row.
-     * Most data from the ECU *should* be from relatively recently
-     *
-     All of these variables should have:
-     - An Explanation
-     - Units
-     - Precision
-     */
     public String[] csv_headers = {
-            //row number for this record, incrementing number
-            //no unit
-            //perfectly precise
-            "row",
-
-            //unix timestamp
-            //seconds
-            //not precise to when values were actually recorded (read docs)
-            "unix_timestamp",
-
-            //seconds since the lap started
-            //seconds
-            //not precise to when values were actually recorded (read docs)
-            "lap_unix_timestamp",
-
-            //distance gone since the start of the race
-            //meters?
-            //TODO: figure out how to calculate this accurately
-            //unknown precision
-            "distance",
-
-            //distance gone in the current lap
-            //meters
-            //unknown precision
-            "lap_distance",
-
-            //formatted timestamp from the GPS
-            //formatted as HH.mm.ss (0 padded)
-            //Very precise BUT not precise to when values were actually recorded (read docs)
-            "gps_time",
-
-            //gps latitude
-            //decimal degrees
-            // GPS Test app (likely as low as 10 feet, error should be relatively consistent?)
-            "gps_latitude",
-
-            //gps longitude
-            //decimal degrees
-            // GPS Test app
-            "gps_longitude",
-
-            //estimate of speed from the android phone gps
-            //miles/hour (converted from meters/second)
-            //test?? (compare to measured wheelspeed values)
-            "gps_speed",
-
-            //how pressed down the ECU thinks the throttle is
-            //decimal percentage
-            //likely accurate to within 1%
-            "throttle_position",
-
-            //percent engine efficiency as reported by the ECU
-            //1%
-            //down to 1% resolution
-            "engine_efficiency",
-
-            //engine oil temperature
-            //degrees celsius
-            //ask engine team lol
-            "oil_temp",
-
-            //engine load from the ECU
-            //1mg
-            //unknown precision
-            "engine_load",
-
-            //wheel speed as measured by the ECU
-            //0.1km/h
-            //probably only accurate per one rotation bc we only have one magnet
-            "wheel_speed_ecu",
-
-            //wheel speed as directly measured by the arduino
-            //0.1km/h
-            //probably only accurate per one rotation bc we only have one magnet
-            "wheel_speed_arduino",
-
-            //"Fuel Injector Duty Cycle" from the ECU
-            //expressed as a percentage (of what I do not know)
-            //precise up to 1%
-            "fuel_injector_timing",
-
-            //car acceleration in latitude direction as measured by the ECU (probably null until we get a GPS?)
-            //0.001G
-            //unknown precision
-            "acceleration_lateral",
-
-            //car acceleration in longitude direction as measured by the ECU (probably null until we get a GPS?)
-            //0.001G
-            //unknown precision
-            "acceleration_longitudinal",
-
-            //car acceleration in vertical direction as measured by the ECU (probably null until we get a GPS?)
-            //0.001G
-            //unknown precision
-            "acceleration_vertical",
-
-            //fuel pressure as measured by the ECU
-            //10kPa
-            //only 256 possible values
-            "fuel_pressure",
-
-            //voltage of the battery as reported by the ECU
-            //volts
-            //xx.x
-            "battery_voltage",
-
-            //a collection of booleans indicating if at least one CAN message with this datapoint was received
-            //bool
-            //binary
-            "message_rec_bits"
+            "row", "unix_timestamp", "lap_unix_timestamp", "distance", "lap_distance", "gps_time",
+            "gps_latitude", "gps_longitude", "gps_speed", "throttle_position", "engine_efficiency",
+            "oil_temp", "engine_load", "wheel_speed_ecu", "wheel_speed_arduino", "fuel_injector_timing",
+            "acceleration_lateral", "acceleration_longitudinal", "acceleration_vertical", "fuel_pressure",
+            "battery_voltage", "message_rec_bits"
     };
 
     public static class Message {
         public int messageType;
         public int messageID;
         public long messageContent;
-
         public Message(int messageType, int messageID, long messageContent) {
             this.messageType = messageType;
             this.messageID = messageID;
             this.messageContent = messageContent;
         }
-
         public int getContentVariable(int offset, int length) {
             return (int) (messageContent >> (64 - offset - length)) & (int) (Math.pow(2, length) - 1);
         }
@@ -965,14 +812,11 @@ public class MainActivity extends AppCompatActivity {
         long messageContent = 0;
         int remainingBytes = 0;
         StringBuilder stringBuilder;
-
         private MessageBuilderState state;
-
         public StringMessageBuilder() {
             this.state = MessageBuilderState.WAITING;
             this.stringBuilder = new StringBuilder();
         }
-
         MessageBuilderState add(byte b) {
             switch (this.state) {
                 case WAITING:
@@ -998,13 +842,9 @@ public class MainActivity extends AppCompatActivity {
                     }
                     stringBuilder.append((char) b);
                     break;
-                default:
-                    pushAlert("oopsies", "Unknown MessageBuilderState enum", "darn");
             }
-
             return state;
         }
-
         public Message getMessage() {
             String result = stringBuilder.toString();
             String[] hexBytes = result.trim().split(" ");
@@ -1014,9 +854,7 @@ public class MainActivity extends AppCompatActivity {
                     this.messageContent = this.messageContent << 8;
                     this.messageContent = this.messageContent | Integer.parseInt(hexBytes[i], 16);
                 }
-            } catch (Exception e) {
-                // Ignore parsing errors
-            }
+            } catch (Exception e) {}
             if (state == MessageBuilderState.COMPLETE) {
                 return new Message(this.messageType, this.messageID, this.messageContent);
             } else {
@@ -1037,33 +875,21 @@ public class MainActivity extends AppCompatActivity {
     }
 
     private void toggleStatsView() {
-        IPAddress.setText("http://" + getWifiIpAddress() + ":8080");
-        if (StatsView.getVisibility() == View.VISIBLE) {
-            StatsView.setVisibility(View.GONE);
-            DriverView.setVisibility(View.VISIBLE);
-        } else {
-            StatsView.setVisibility(View.VISIBLE);
-            DriverView.setVisibility(View.GONE);
+        TabLayout tabLayout = findViewById(R.id.tabLayout);
+        if (tabLayout != null) {
+            int currentTab = tabLayout.getSelectedTabPosition();
+            TabLayout.Tab nextTab = tabLayout.getTabAt((currentTab + 1) % 2);
+            if (nextTab != null) nextTab.select();
         }
     }
 
     private void startGPSTracking() {
-
-        if (ActivityCompat.checkSelfPermission(this, Manifest.permission.ACCESS_FINE_LOCATION)
-                != PackageManager.PERMISSION_GRANTED) {
-            ActivityCompat.requestPermissions(this,
-                    new String[]{Manifest.permission.ACCESS_FINE_LOCATION},
-                    LOCATION_REQUEST_CODE);
+        if (ActivityCompat.checkSelfPermission(this, Manifest.permission.ACCESS_FINE_LOCATION) != PackageManager.PERMISSION_GRANTED) {
+            ActivityCompat.requestPermissions(this, new String[]{Manifest.permission.ACCESS_FINE_LOCATION}, LOCATION_REQUEST_CODE);
             return;
         }
-
-        locationManager.requestLocationUpdates(
-                LocationManager.GPS_PROVIDER,
-                100,  // min time interval (1/11 second)
-                0,     // min distance change (0m)
-                locationListener
-        );
-        Latitude.setText("ran");
+        locationManager.requestLocationUpdates(LocationManager.GPS_PROVIDER, 100, 0, locationListener);
+        if (Latitude != null) Latitude.setText("ran");
     }
 
     private String getWifiIpAddress() {
@@ -1071,13 +897,7 @@ public class MainActivity extends AppCompatActivity {
         WifiManager wm = (WifiManager) context.getSystemService(Context.WIFI_SERVICE);
         int ip = wm.getConnectionInfo().getIpAddress();
         if (ip != 0) {
-            return String.format(Locale.ENGLISH,
-                    "%d.%d.%d.%d",
-                    (ip & 0xff),
-                    (ip >> 8 & 0xff),
-                    (ip >> 16 & 0xff),
-                    (ip >> 24 & 0xff)
-            );
+            return String.format(Locale.ENGLISH, "%d.%d.%d.%d", (ip & 0xff), (ip >> 8 & 0xff), (ip >> 16 & 0xff), (ip >> 24 & 0xff));
         }
         return "No Local IP Address";
     }

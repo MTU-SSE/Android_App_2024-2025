@@ -297,7 +297,7 @@
         app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintTop_toTopOf="parent">
 
-        <include layout="@layout/view_dash_metrics" />
+        <include layout="@layout/view_dash_driver" />
 
         <include layout="@layout/fragment_bluetooth_select" />
 

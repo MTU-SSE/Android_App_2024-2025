@@ -43,6 +43,7 @@ dependencies {
     implementation(libs.navigation.ui)
     implementation(project(":http_file_server"))
     implementation(project(":usbSerialForAndroid"))
+    implementation(libs.androidx.constraintlayout)
     testImplementation(libs.junit)
     androidTestImplementation(libs.ext.junit)
     androidTestImplementation(libs.espresso.core)

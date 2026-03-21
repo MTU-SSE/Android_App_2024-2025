@@ -4,25 +4,46 @@
     android:layout_height="match_parent"
     android:orientation="vertical"
     android:padding="16dp"
-    android:background="#FFFFFF">
+    android:background="#000000">
 
     <TextView
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:text="Select Bluetooth Device"
+        android:textColor="#00FF00"
         android:textSize="24sp"
         android:textStyle="bold"
-        android:paddingBottom="16dp" />
+        android:paddingBottom="16dp"
+        android:fontFamily="monospace"/>
 
     <ListView
         android:id="@+id/device_list"
         android:layout_width="match_parent"
         android:layout_height="0dp"
-        android:layout_weight="1" />
+        android:layout_weight="1"
+        android:background="#FFFFFF"
+        android:divider="#444444"
+        android:dividerHeight="1dp" />
 
     <Button
         android:id="@+id/refresh_button"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:text="Refresh Paired Devices" />
+        android:text="Refresh Paired Devices"
+        android:backgroundTint="#222222"
+        android:textColor="#00FF00"
+        android:fontFamily="monospace"/>
+
+    <TextView
+        android:id="@+id/raw_bluetooth_data"
+        android:layout_width="match_parent"
+        android:layout_height="100dp"
+        android:background="#111111"
+        android:textColor="#FFFFFF"
+        android:textSize="12sp"
+        android:fontFamily="monospace"
+        android:padding="4dp"
+        android:scrollbars="vertical"
+        android:text="Raw data will appear here..."/>
+
 </LinearLayout>

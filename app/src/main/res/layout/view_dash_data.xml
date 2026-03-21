@@ -1,0 +1,324 @@
+<?xml version="1.0" encoding="utf-8"?>
+<androidx.constraintlayout.widget.ConstraintLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:id="@+id/stats_view"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent">
+
+
+    <TextView
+        android:id="@+id/fuelPressureLabel"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:fontFamily="sans-serif-black"
+        android:scaleY="1.1"
+        android:text="Fuel Pressure"
+        android:textAlignment="textEnd"
+        android:textColor="#00FF00"
+        android:textSize="30sp"
+        android:typeface="monospace"
+        app:layout_constraintBottom_toTopOf="@+id/lambdaLabel"
+        app:layout_constraintStart_toEndOf="@+id/speedNumber2"
+        app:layout_constraintTop_toBottomOf="@+id/voltageLabel" />
+
+    <TextView
+        android:id="@+id/coolantTempLabel"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:fontFamily="sans-serif-black"
+        android:scaleY="1.1"
+        android:text="Coolant"
+        android:textAlignment="textEnd"
+        android:textColor="#00FF00"
+        android:textSize="30sp"
+        android:typeface="monospace"
+        app:layout_constraintBottom_toTopOf="@+id/voltageLabel"
+        app:layout_constraintEnd_toEndOf="@+id/voltageLabel"
+        app:layout_constraintTop_toTopOf="parent" />
+
+    <TextView
+        android:id="@+id/IPAddrLabel"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:fontFamily="sans-serif-black"
+        android:scaleY="1.1"
+        android:text="URL:"
+        android:textAlignment="textEnd"
+        android:textColor="#00FF00"
+        android:textSize="24sp"
+        android:typeface="monospace"
+        app:layout_constraintBottom_toTopOf="@+id/latitudeLabel"
+        app:layout_constraintEnd_toEndOf="@+id/gpsSpeedLabel"
+        app:layout_constraintTop_toBottomOf="@+id/gpsSpeedLabel" />
+
+    <TextView
+        android:id="@+id/lambdaLabel"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:fontFamily="sans-serif-black"
+        android:scaleY="1.1"
+        android:text="lambda"
+        android:textAlignment="textEnd"
+        android:textColor="#00FF00"
+        android:textSize="30sp"
+        android:typeface="monospace"
+        app:layout_constraintBottom_toTopOf="@+id/gpsSpeedLabel"
+        app:layout_constraintEnd_toEndOf="@+id/fuelPressureLabel"
+        app:layout_constraintTop_toBottomOf="@+id/fuelPressureLabel" />
+
+    <TextView
+        android:id="@+id/fuelPressureNumber"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:fontFamily="sans-serif-black"
+        android:scaleY="1.1"
+        android:text="-1 kPa"
+        android:textAlignment="center"
+        android:textColor="#00FF00"
+        android:textSize="30sp"
+        android:typeface="monospace"
+        app:layout_constraintBottom_toTopOf="@+id/lambdaNumber"
+        app:layout_constraintStart_toStartOf="@+id/lambdaNumber"
+        app:layout_constraintTop_toBottomOf="@+id/voltageNumber" />
+
+    <TextView
+        android:id="@+id/gpsSpeedNumber"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:fontFamily="sans-serif-black"
+        android:scaleY="1.1"
+        android:text="-0.00"
+        android:textAlignment="center"
+        android:textColor="#00FF00"
+        android:textSize="30sp"
+        android:typeface="monospace"
+        app:layout_constraintBottom_toTopOf="@+id/IPAddrNumber"
+        app:layout_constraintStart_toStartOf="@+id/IPAddrNumber"
+        app:layout_constraintTop_toBottomOf="@+id/lambdaNumber" />
+
+    <TextView
+        android:id="@+id/coolantTempNumber"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:fontFamily="sans-serif-black"
+        android:scaleY="1.1"
+        android:text="-1 C"
+        android:textAlignment="center"
+        android:textColor="#00FF00"
+        android:textSize="30sp"
+        android:typeface="monospace"
+        app:layout_constraintBottom_toTopOf="@+id/voltageNumber"
+        app:layout_constraintStart_toStartOf="@+id/voltageNumber"
+        app:layout_constraintTop_toTopOf="parent" />
+
+    <TextView
+        android:id="@+id/latitudeNumber"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:fontFamily="sans-serif-black"
+        android:scaleY="1.1"
+        android:text="0.0000"
+        android:textAlignment="center"
+        android:textColor="#00FF00"
+        android:textSize="20sp"
+        android:typeface="monospace"
+        app:layout_constraintBottom_toTopOf="@+id/longitudeNumber"
+        app:layout_constraintStart_toStartOf="@+id/longitudeNumber"
+        app:layout_constraintTop_toBottomOf="@+id/IPAddrNumber" />
+
+    <TextView
+        android:id="@+id/IPAddrNumber"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:fontFamily="sans-serif-black"
+        android:scaleY="1.1"
+        android:text="Starting..."
+        android:textAlignment="center"
+        android:textColor="#00FF00"
+        android:textSize="16sp"
+        android:typeface="monospace"
+        app:layout_constraintBottom_toTopOf="@+id/latitudeNumber"
+        app:layout_constraintStart_toStartOf="@+id/latitudeNumber"
+        app:layout_constraintTop_toBottomOf="@+id/gpsSpeedNumber" />
+
+    <TextView
+        android:id="@+id/lambdaNumber"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:fontFamily="sans-serif-black"
+        android:scaleY="1.1"
+        android:text="-1"
+        android:textAlignment="center"
+        android:textColor="#00FF00"
+        android:textSize="30sp"
+        android:typeface="monospace"
+        app:layout_constraintBottom_toTopOf="@+id/gpsSpeedNumber"
+        app:layout_constraintStart_toStartOf="@+id/gpsSpeedNumber"
+        app:layout_constraintTop_toBottomOf="@+id/fuelPressureNumber" />
+
+    <TextView
+        android:id="@+id/voltageNumber"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:fontFamily="sans-serif-black"
+        android:scaleY="1.1"
+        android:text="-1 V"
+        android:textAlignment="center"
+        android:textColor="#00FF00"
+        android:textSize="30sp"
+        android:typeface="monospace"
+        app:layout_constraintBottom_toTopOf="@+id/fuelPressureNumber"
+        app:layout_constraintStart_toStartOf="@+id/fuelPressureNumber"
+        app:layout_constraintTop_toBottomOf="@+id/coolantTempNumber" />
+
+    <TextView
+        android:id="@+id/longitudeNumber"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_marginStart="32dp"
+        android:fontFamily="sans-serif-black"
+        android:scaleY="1.1"
+        android:text="0.0000"
+        android:textAlignment="center"
+        android:textColor="#00FF00"
+        android:textSize="20sp"
+        android:typeface="monospace"
+        app:layout_constraintBottom_toBottomOf="parent"
+        app:layout_constraintStart_toEndOf="@+id/longitudeLabel"
+        app:layout_constraintTop_toBottomOf="@+id/latitudeNumber" />
+
+    <TextView
+        android:id="@+id/gpsSpeedLabel"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:fontFamily="sans-serif-black"
+        android:scaleY="1.1"
+        android:text="GPS Speed"
+        android:textAlignment="textEnd"
+        android:textColor="#00FF00"
+        android:textSize="24sp"
+        android:typeface="monospace"
+        app:layout_constraintBottom_toTopOf="@+id/IPAddrLabel"
+        app:layout_constraintEnd_toEndOf="@+id/lambdaLabel"
+        app:layout_constraintTop_toBottomOf="@+id/lambdaLabel" />
+
+    <TextView
+        android:id="@+id/voltageLabel"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:fontFamily="sans-serif-black"
+        android:scaleY="1.1"
+        android:text="Battery"
+        android:textAlignment="textEnd"
+        android:textColor="#00FF00"
+        android:textSize="30sp"
+        android:typeface="monospace"
+        app:layout_constraintBottom_toTopOf="@+id/fuelPressureLabel"
+        app:layout_constraintEnd_toEndOf="@+id/fuelPressureLabel"
+        app:layout_constraintTop_toBottomOf="@+id/coolantTempLabel" />
+
+    <TextView
+        android:id="@+id/speedLabel2"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:fontFamily="sans-serif-black"
+        android:scaleY="1.1"
+        android:text="Speed"
+        android:textAlignment="center"
+        android:textColor="#00FF00"
+        android:textSize="40sp"
+        android:typeface="monospace"
+        app:layout_constraintBottom_toTopOf="@+id/speedNumber2"
+        app:layout_constraintEnd_toEndOf="@+id/speedNumber2"
+        app:layout_constraintStart_toStartOf="@+id/speedNumber2"
+        app:layout_constraintTop_toTopOf="parent" />
+
+    <TextView
+        android:id="@+id/speedNumber2"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:fontFamily="sans-serif-black"
+        android:scaleY="1.1"
+        android:text="-12"
+        android:textAlignment="center"
+        android:textAllCaps="false"
+        android:textAppearance="@style/TextAppearance.AppCompat.Large"
+        android:textColor="#00FF00"
+        android:textSize="100sp"
+        android:textStyle="bold"
+        android:typeface="monospace"
+        app:layout_constraintBottom_toTopOf="@+id/rpmLabel2"
+        app:layout_constraintEnd_toEndOf="@+id/rpmLabel2"
+        app:layout_constraintStart_toStartOf="@+id/rpmLabel2"
+        app:layout_constraintTop_toBottomOf="@+id/speedLabel2" />
+
+    <TextView
+        android:id="@+id/rpmLabel2"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:fontFamily="sans-serif-black"
+        android:scaleY="1.1"
+        android:text="RPM"
+        android:textAlignment="center"
+        android:textColor="#00FF00"
+        android:textSize="40sp"
+        android:typeface="monospace"
+        app:layout_constraintBottom_toTopOf="@+id/rpmNumber2"
+        app:layout_constraintEnd_toEndOf="@+id/rpmNumber2"
+        app:layout_constraintStart_toStartOf="@+id/rpmNumber2"
+        app:layout_constraintTop_toBottomOf="@+id/speedNumber2" />
+
+    <TextView
+        android:id="@+id/rpmNumber2"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:fontFamily="sans-serif-black"
+        android:scaleY="1.1"
+        android:text="-123"
+        android:textAlignment="center"
+        android:textAllCaps="false"
+        android:textAppearance="@style/TextAppearance.AppCompat.Large"
+        android:textColor="#00FF00"
+        android:textSize="80sp"
+        android:textStyle="bold"
+        android:typeface="monospace"
+        app:layout_constraintBottom_toBottomOf="parent"
+        app:layout_constraintTop_toBottomOf="@+id/rpmLabel2"
+        app:layout_constraintStart_toStartOf="parent" />
+
+    <TextView
+        android:id="@+id/latitudeLabel"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:fontFamily="sans-serif-black"
+        android:scaleY="1.1"
+        android:text="Lat:"
+        android:textAlignment="textEnd"
+        android:textColor="#00FF00"
+        android:textSize="20sp"
+        android:typeface="monospace"
+        app:layout_constraintBottom_toTopOf="@+id/longitudeLabel"
+        app:layout_constraintEnd_toEndOf="@+id/IPAddrLabel"
+        app:layout_constraintTop_toBottomOf="@+id/IPAddrLabel" />
+
+    <TextView
+        android:id="@+id/longitudeLabel"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:fontFamily="sans-serif-black"
+        android:scaleY="1.1"
+        android:text="Lon:"
+        android:textAlignment="textEnd"
+        android:textColor="#00FF00"
+        android:textSize="20sp"
+        android:typeface="monospace"
+        app:layout_constraintBottom_toBottomOf="parent"
+        app:layout_constraintEnd_toEndOf="@+id/latitudeLabel"
+        app:layout_constraintTop_toBottomOf="@+id/latitudeLabel" />
+
+    <androidx.constraintlayout.widget.Barrier
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content" />
+
+</androidx.constraintlayout.widget.ConstraintLayout>

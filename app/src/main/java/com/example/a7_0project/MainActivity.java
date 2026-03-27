@@ -302,9 +302,9 @@ public class MainActivity extends AppCompatActivity {
             @Override
             public void run() {
                 checkDefaultBluetoothDevice();
-                handler.postDelayed(this, 500); // Check every 2 seconds
+                handler.postDelayed(this, 100); // Check every 100ms for fast response
             }
-        }, 500);
+        }, 100);
     }
 
     private void checkDefaultBluetoothDevice() {
@@ -335,12 +335,30 @@ public class MainActivity extends AppCompatActivity {
 
         if (isBluetoothConnecting) return;
         isBluetoothConnecting = true;
+
+        if (bluetoothAdapter.isDiscovering()) {
+            bluetoothAdapter.cancelDiscovery();
+        }
         
         new Thread(() -> {
             BluetoothSocket tempSocket = null;
             try {
-                tempSocket = device.createRfcommSocketToServiceRecord(SPP_UUID);
+                tempSocket = device.createInsecureRfcommSocketToServiceRecord(SPP_UUID);
+                
+                // Watchdog to enforce a short timeout (1.5s) to allow rapid retries if device is off
+                final BluetoothSocket socketToClose = tempSocket;
+                Thread watchdog = new Thread(() -> {
+                    try {
+                        Thread.sleep(1500); 
+                        if (isBluetoothConnecting) {
+                            try { socketToClose.close(); } catch (IOException ignored) {}
+                        }
+                    } catch (InterruptedException ignored) {}
+                });
+                watchdog.start();
+
                 tempSocket.connect();
+                watchdog.interrupt(); 
                 
                 synchronized (this) {
                     if (bluetoothSocket != null) {
@@ -357,7 +375,7 @@ public class MainActivity extends AppCompatActivity {
                 if (tempSocket != null) {
                     try { tempSocket.close(); } catch (IOException ignored) {}
                 }
-                Log.d("SSE", "Bluetooth connection failed (device probably off)");
+                Log.d("SSE", "Bluetooth connection attempt failed");
             }
         }).start();
     }

@@ -37,13 +37,13 @@
     <TextView
         android:id="@+id/raw_bluetooth_data"
         android:layout_width="match_parent"
-        android:layout_height="100dp"
+        android:layout_height="80dp"
         android:background="#111111"
-        android:textColor="#FFFFFF"
-        android:textSize="12sp"
         android:fontFamily="monospace"
         android:padding="4dp"
         android:scrollbars="vertical"
-        android:text="Raw data will appear here..."/>
+        android:text="Raw data will appear here..."
+        android:textColor="#FFFFFF"
+        android:textSize="12sp" />
 
 </LinearLayout>

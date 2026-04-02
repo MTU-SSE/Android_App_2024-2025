@@ -81,6 +81,7 @@ public class MainActivity extends AppCompatActivity {
 
     //all the data that we will be loggin'
     private Map<String, Object> data_frame = new ConcurrentHashMap<>();
+    private Map<Integer, Integer> messageCounts = new ConcurrentHashMap<>();
 
     private TextView label1;
     private TextView label2;
@@ -121,6 +122,8 @@ public class MainActivity extends AppCompatActivity {
     private long errorTimestamp;
     private long ecu_speed_timestamp;
     public static boolean threadLock = false;
+
+    public double secret_mult = 1.0;
 
     //how often the log function runs in milliseconds
     public static int log_timing = 100;
@@ -232,24 +235,35 @@ public class MainActivity extends AppCompatActivity {
         locationListener = location -> {
             double lat = location.getLatitude();
             double lon = location.getLongitude();
-            gps_speed = location.getSpeed();
+            gps_speed = location.getSpeed() * 2.23693629;
             double time_millis = location.getTime();
             data_frame.put("gps_time", time_millis);
-            if (Latitude != null) Latitude.setText(String.format(Locale.ENGLISH, "%.4f", lat));
+            Latitude.setText(String.format(Locale.ENGLISH, "%.4f", lat));
             data_frame.put("gps_latitude", String.format(Locale.ENGLISH, "%.4f", lat));
-            if (Longitude != null) Longitude.setText(String.format(Locale.ENGLISH, "%.4f", lon));
+            Longitude.setText(String.format(Locale.ENGLISH, "%.4f", lon));
             data_frame.put("gps_longitude", String.format(Locale.ENGLISH, "%.4f", lon));
-            if (GPSSpeed != null) GPSSpeed.setText(String.format(Locale.ENGLISH, "%.2f", gps_speed));
+            GPSSpeed.setText(String.format(Locale.ENGLISH, "%.2f", gps_speed));
             data_frame.put("gps_speed", gps_speed);
             if ((uptimeMillis() - ecu_speed_timestamp) > 500) {
-                if (SpeedLabel != null) SpeedLabel.setTextColor(Color.CYAN);
-                handleSpeed(gps_speed * 2.23693629);
+                SpeedLabel.setText("Speed (GPS)");
+                handleSpeed(gps_speed);
             }
         };
 
         startGPSTracking();
 
         RecordingButton.setOnClickListener(v -> temp_logging_start());
+
+        SpeedNumber2.setOnClickListener(v -> {
+            if (secret_mult == 1.0) {
+                SpeedNumber2.setTextColor(Color.BLUE);
+                secret_mult = 0.5;
+            }
+            else {
+                secret_mult = 1.0;
+                SpeedNumber2.setTextColor(Color.GREEN);
+            }
+        });
 
         this.bluetoothAdapter = BluetoothAdapter.getDefaultAdapter();
 
@@ -272,12 +286,7 @@ public class MainActivity extends AppCompatActivity {
         });
 
         if (label1 != null) label1.setText(getWifiIpAddress());
-        if (IPAddress != null) IPAddress.setText("http://" + getWifiIpAddress() + ":8080");
-
-        Intent this_intent = getIntent();
-        if (UsbManager.ACTION_USB_DEVICE_ATTACHED.equals(this_intent.getAction())) {
-            Log.i("SSE", "Activity started by USB device attachment.");
-        }
+        IPAddress.setText("http://" + getWifiIpAddress() + ":8080");
 
         startBluetoothAutoConnect();
         listPairedDevices();
@@ -547,8 +556,8 @@ public class MainActivity extends AppCompatActivity {
         try {
             if (race_start_timestamp == 0) {
                 create_csv();
-                if (SpeedLabel != null) SpeedLabel.setTextColor(Color.RED);
                 race_start_timestamp = System.currentTimeMillis();
+                if (RecordingButton != null) RecordingButton.setBackgroundTintList(ColorStateList.valueOf(Color.RED));
             }
             else {
                 if (RecordingButton != null) RecordingButton.setBackgroundTintList(ColorStateList.valueOf(Color.parseColor("#541414")));
@@ -560,17 +569,25 @@ public class MainActivity extends AppCompatActivity {
         }
     }
 
+    private void log_message_received(int messageID) {
+        messageCounts.merge(messageID, 1, Integer::sum);
+    }
+
     private void handle_complete_message(Message message) {
         try {
             currentMessageBuilder = new StringMessageBuilder();
             if (message != null) {
+                log_message_received(message.messageID);
                 switch (message.messageID) {
                     case 0x640:
                         int rpm = message.getContentVariable(0, 16);
-                        if (RpmNumber != null) RpmNumber.setText(String.format(Locale.ENGLISH, "%d", rpm));
-                        if (RpmNumber2 != null) RpmNumber2.setText(String.format(Locale.ENGLISH, "%d", rpm));
-                        if (EngineIndicator != null) EngineIndicator.setBackgroundTintList(ColorStateList.valueOf( rpm > 1600 ? Color.GREEN :Color.RED));
-                        if (StarterIndicator != null) StarterIndicator.setBackgroundTintList(ColorStateList.valueOf( rpm > 100 && rpm < 1500 ? Color.GREEN :Color.RED));
+                        RpmNumber.setText(String.format(Locale.ENGLISH, "%d", rpm));
+                        RpmNumber2.setText(String.format(Locale.ENGLISH, "%d", rpm));
+                        EngineIndicator.setBackgroundTintList(ColorStateList.valueOf( rpm > 1600 ? Color.GREEN :Color.RED));
+                        StarterIndicator.setBackgroundTintList(ColorStateList.valueOf( rpm > 100 && rpm < 1500 ? Color.GREEN :Color.RED));
+                        int throttlePosition = message.getContentVariable(48, 16) * 10;
+                        ThrottlePositionBar.setProgress(throttlePosition);
+                        data_frame.put("throttle_position", String.format(Locale.ENGLISH, "%d", throttlePosition));
                         break;
                     case 0x641:
                         int fuelPressure = message.getContentVariable(32, 16) / 10;
@@ -585,11 +602,22 @@ public class MainActivity extends AppCompatActivity {
                         int engineLoad = message.getContentVariable(16, 16);
                         data_frame.put("engine_load", String.format("%d", engineLoad));
                         break;
+                    case 0x648:
+                        //get the wheel speed from the back right wheel (what it's mapped to in the ECU)
+                        double ecu_speed = (message.getContentVariable(48, 16) * 0.06213712 * secret_mult);
+                        data_frame.put("ecu_speed", String.format("%.1f", ecu_speed));
+                        SpeedLabel.setText("Speed (ECU)");
+                        ecu_speed_timestamp = System.currentTimeMillis();
+                        handleSpeed(ecu_speed);
+                        break;
                     case 0x649:
+                        //I have co-opted the coolant_temp label for the ECU fuel used metric, fix the labels eventually
+                        double coolant_temp = message.getContentVariable(48, 16) / 100.0;
+                        CoolantTemperature.setText(String.format(Locale.ENGLISH, "%.3f L", coolant_temp));
                         int engineOilTemp = message.getContentVariable(8, 8) - 40;
                         data_frame.put("oil_temp", String.format("%d", engineOilTemp));
                         float voltage = message.getContentVariable(40, 8) / (float) 10;
-                        if (VoltageNumber != null) VoltageNumber.setText(String.format(Locale.ENGLISH, "%.1f V", voltage));
+                        VoltageNumber.setText(String.format(Locale.ENGLISH, "%.1f V", voltage));
                         data_frame.put("battery_voltage", String.format("%.1f", voltage));
                         if (voltage < 10.5) {
                             if (warningObjects[5] != null) warningObjects[5].timestamp = System.currentTimeMillis();
@@ -610,16 +638,6 @@ public class MainActivity extends AppCompatActivity {
                             if (LambdaNumber != null) LambdaNumber.setText(String.format(Locale.ENGLISH, "%4.3f", lambda));
                         }
                         break;
-                    case 0x118:
-                        double ecu_speed = (message.getContentVariable(16, 8) * 0.6213712);
-                        if (SpeedLabel != null) SpeedLabel.setTextColor(Color.GREEN);
-                        handleSpeed(ecu_speed);
-                        int throttlePosition = message.getContentVariable(8, 8);
-                        if (ThrottlePositionBar != null) ThrottlePositionBar.setProgress(throttlePosition);
-                        data_frame.put("throttle_position", String.format(Locale.ENGLISH, "%d", throttlePosition));
-                        int coolant_temp = message.getContentVariable(24, 8);
-                        if (CoolantTemperature != null) CoolantTemperature.setText(String.format(Locale.ENGLISH, "%d C", coolant_temp));
-                        break;
                 }
                 handle_warnings();
             }
@@ -629,8 +647,8 @@ public class MainActivity extends AppCompatActivity {
     }
 
     public void handleSpeed(double vehicle_speed) {
-        if (SpeedNumber != null) SpeedNumber.setText(String.format(Locale.ENGLISH, "%.1f", vehicle_speed));
-        if (SpeedNumber2 != null) SpeedNumber2.setText(String.format(Locale.ENGLISH, "%.1f", vehicle_speed));
+        SpeedNumber.setText(String.format(Locale.ENGLISH, "%.1f", vehicle_speed));
+        SpeedNumber2.setText(String.format(Locale.ENGLISH, "%.1f", vehicle_speed));
         if (RedlineIndicator != null) {
             RedlineIndicator.setProgress((int) (vehicle_speed * 10));
             RedlineIndicator.setProgressTintList(ColorStateList.valueOf(vehicle_speed > 26 || vehicle_speed < 10 ? Color.RED : Color.YELLOW));
@@ -699,6 +717,7 @@ public class MainActivity extends AppCompatActivity {
         this.race_start_timestamp = System.currentTimeMillis();
         this.lap_start_timestamp = 0;
         this.data_frame.clear();
+        this.messageCounts.clear();
 
         try (FileWriter writer = new FileWriter(this.current_file)) {
             String headerLine = String.join(",", csv_headers);
@@ -713,6 +732,12 @@ public class MainActivity extends AppCompatActivity {
 
     private void append_csv() {
         if (this.current_file == null) return;
+
+        for (Map.Entry<Integer, Integer> entry : messageCounts.entrySet()) {
+            data_frame.put(String.format(Locale.ENGLISH, "0x%X", entry.getKey()), entry.getValue());
+        }
+        messageCounts.clear();
+
         data_frame.put("unix_timestamp", System.currentTimeMillis());
         data_frame.put("lap_unix_timestamp", System.currentTimeMillis() - this.lap_start_timestamp);
         data_frame.put("row", row++);
@@ -743,10 +768,11 @@ public class MainActivity extends AppCompatActivity {
 
     public String[] csv_headers = {
             "row", "unix_timestamp", "lap_unix_timestamp", "distance", "lap_distance", "gps_time",
-            "gps_latitude", "gps_longitude", "gps_speed", "throttle_position", "engine_efficiency",
+            "gps_latitude", "gps_longitude", "gps_speed", "ecu_speed", "throttle_position", "engine_efficiency",
             "oil_temp", "engine_load", "wheel_speed_ecu", "wheel_speed_arduino", "fuel_injector_timing",
             "acceleration_lateral", "acceleration_longitudinal", "acceleration_vertical", "fuel_pressure",
-            "battery_voltage", "message_rec_bits"
+            "battery_voltage", "message_rec_bits",
+            "0x640", "0x641", "0x642", "0x649", "0x64C", "0x460", "0x118"
     };
 
     public static class Message {
@@ -840,7 +866,7 @@ public class MainActivity extends AppCompatActivity {
             ActivityCompat.requestPermissions(this, new String[]{Manifest.permission.ACCESS_FINE_LOCATION}, LOCATION_REQUEST_CODE);
             return;
         }
-        locationManager.requestLocationUpdates(LocationManager.GPS_PROVIDER, 100, 0, locationListener);
+        locationManager.requestLocationUpdates(LocationManager.GPS_PROVIDER, 90, 0, locationListener);
     }
 
     private String getWifiIpAddress() {

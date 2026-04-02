@@ -255,7 +255,7 @@
 
     <Button
         android:id="@+id/recordingButton"
-        android:layout_width="30dp"
+        android:layout_width="40dp"
         android:layout_height="30dp"
         android:backgroundTint="#541414"
         android:text="R"

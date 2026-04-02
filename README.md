@@ -3,7 +3,7 @@
 ### From an .apk file
 
 1. Plug the Android phone into a computer
-2. Pull down the notification shade, and select the notification "charge this device visa USB" and "tap for more options"
+2. Pull down the notification shade, and select the notification "charge this device via USB" and "tap for more options"
 3. Select "file transfer"
 4. Copy the .apk file into the "Download" folder in the phone
 5. Eject the phone and disconnect the Android phone from the computer

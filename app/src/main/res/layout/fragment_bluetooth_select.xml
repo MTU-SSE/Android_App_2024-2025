@@ -13,6 +13,16 @@
         android:textColor="#00FF00"
         android:textSize="24sp"
         android:textStyle="bold"
+        android:paddingBottom="8dp"
+        android:fontFamily="monospace"/>
+
+    <TextView
+        android:id="@+id/bluetooth_status"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text="Status: Disconnected"
+        android:textColor="#FF0000"
+        android:textSize="18sp"
         android:paddingBottom="16dp"
         android:fontFamily="monospace"/>
 

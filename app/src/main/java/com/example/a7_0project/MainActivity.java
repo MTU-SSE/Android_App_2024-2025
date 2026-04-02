@@ -20,6 +20,7 @@ import android.content.IntentFilter;
 import android.content.SharedPreferences;
 import android.content.pm.PackageManager;
 import android.content.res.ColorStateList;
+import android.content.res.Configuration;
 import android.graphics.Color;
 import android.hardware.usb.UsbDevice;
 import android.hardware.usb.UsbDeviceConnection;
@@ -40,6 +41,7 @@ import android.widget.TextView;
 import android.widget.Toast;
 import android.widget.ViewFlipper;
 
+import androidx.annotation.NonNull;
 import androidx.appcompat.app.AppCompatActivity;
 import androidx.core.app.ActivityCompat;
 import androidx.fragment.app.Fragment;
@@ -186,6 +188,10 @@ public class MainActivity extends AppCompatActivity {
         if (deviceList != null) {
             deviceList.setAdapter(adapter);
             deviceList.setOnItemClickListener((parent, view, position, id) -> {
+                if (ActivityCompat.checkSelfPermission(this, Manifest.permission.BLUETOOTH_CONNECT) != PackageManager.PERMISSION_GRANTED) {
+                    ActivityCompat.requestPermissions(this, new String[]{Manifest.permission.BLUETOOTH_CONNECT}, LOCATION_REQUEST_CODE);
+                    return;
+                }
                 BluetoothDevice selectedDevice = devices.get(position);
                 saveDefaultDevice(selectedDevice.getAddress());
                 connectToBluetoothDevice(selectedDevice);
@@ -368,7 +374,13 @@ public class MainActivity extends AppCompatActivity {
                 }
                 
                 isBluetoothConnecting = false;
-                runOnUiThread(() -> Toast.makeText(this, "Connected to " + device.getName(), Toast.LENGTH_SHORT).show());
+                runOnUiThread(() -> {
+                    try {
+                        Toast.makeText(this, "Connected to " + device.getName(), Toast.LENGTH_SHORT).show();
+                    } catch (SecurityException e) {
+                        Log.e("SSE", "Permission denied for getName", e);
+                    }
+                });
                 startBluetoothReader();
             } catch (IOException e) {
                 isBluetoothConnecting = false;
@@ -380,12 +392,21 @@ public class MainActivity extends AppCompatActivity {
         }).start();
     }
 
+    public boolean isBluetoothConnected() {
+        return bluetoothSocket != null && bluetoothSocket.isConnected();
+    }
+
+    public boolean isBluetoothConnecting() {
+        return isBluetoothConnecting;
+    }
+
     private void startBluetoothReader() {
         new Thread(() -> {
-            try (InputStream inputStream = bluetoothSocket.getInputStream()) {
+            BluetoothSocket currentSocket = bluetoothSocket;
+            try (InputStream inputStream = currentSocket.getInputStream()) {
                 byte[] buffer = new byte[1024];
                 int bytes;
-                while (bluetoothSocket != null && bluetoothSocket.isConnected()) {
+                while (currentSocket != null && currentSocket.isConnected() && currentSocket == bluetoothSocket) {
                     bytes = inputStream.read(buffer);
                     if (bytes == -1) break;
                     if (bytes > 0) {
@@ -407,7 +428,7 @@ public class MainActivity extends AppCompatActivity {
                 Log.e("SSE", "Bluetooth read error", e);
             } finally {
                 synchronized (this) {
-                    if (bluetoothSocket != null) {
+                    if (bluetoothSocket == currentSocket) {
                         try { bluetoothSocket.close(); } catch (IOException ignored) {}
                         bluetoothSocket = null;
                     }
@@ -469,6 +490,35 @@ public class MainActivity extends AppCompatActivity {
     }
 
     @Override
+    public void onConfigurationChanged(@NonNull Configuration newConfig) {
+        super.onConfigurationChanged(newConfig);
+        hideSystemUI();
+    }
+
+    @Override
+    public void onRequestPermissionsResult(int requestCode, @NonNull String[] permissions, @NonNull int[] grantResults) {
+        super.onRequestPermissionsResult(requestCode, permissions, grantResults);
+        if (requestCode == LOCATION_REQUEST_CODE) {
+            boolean bluetoothGranted = false;
+            boolean locationGranted = false;
+            for (int i = 0; i < permissions.length; i++) {
+                if (permissions[i].equals(Manifest.permission.BLUETOOTH_CONNECT) && grantResults[i] == PackageManager.PERMISSION_GRANTED) {
+                    bluetoothGranted = true;
+                }
+                if (permissions[i].equals(Manifest.permission.ACCESS_FINE_LOCATION) && grantResults[i] == PackageManager.PERMISSION_GRANTED) {
+                    locationGranted = true;
+                }
+            }
+            if (bluetoothGranted) {
+                listPairedDevices();
+            }
+            if (locationGranted) {
+                startGPSTracking();
+            }
+        }
+    }
+
+    @Override
     protected void onResume() {
         super.onResume();
         hideSystemUI();
@@ -480,6 +530,21 @@ public class MainActivity extends AppCompatActivity {
     protected void onPause() {
         super.onPause();
         unregisterReceiver(usbPermissionReceiver);
+    }
+
+    @Override
+    protected void onDestroy() {
+        super.onDestroy();
+        synchronized (this) {
+            if (bluetoothSocket != null) {
+                try {
+                    bluetoothSocket.close();
+                } catch (IOException e) {
+                    Log.e("SSE", "Error closing bluetooth socket on destroy", e);
+                }
+                bluetoothSocket = null;
+            }
+        }
     }
 
     private final BroadcastReceiver usbPermissionReceiver = new BroadcastReceiver() {

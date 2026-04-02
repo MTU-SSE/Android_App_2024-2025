@@ -6,13 +6,17 @@ import android.bluetooth.BluetoothDevice;
 import android.content.Context;
 import android.content.SharedPreferences;
 import android.content.pm.PackageManager;
+import android.graphics.Color;
 import android.os.Bundle;
+import android.os.Handler;
+import android.os.Looper;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
 import android.widget.ArrayAdapter;
 import android.widget.Button;
 import android.widget.ListView;
+import android.widget.TextView;
 import android.widget.Toast;
 
 import androidx.annotation.NonNull;
@@ -27,6 +31,7 @@ public class BluetoothSelectFragment extends Fragment {
 
     private ListView deviceList;
     private Button refreshButton;
+    private TextView bluetoothStatus;
     private BluetoothAdapter bluetoothAdapter;
     private ArrayList<String> deviceNames = new ArrayList<>();
     private ArrayList<BluetoothDevice> devices = new ArrayList<>();
@@ -34,6 +39,9 @@ public class BluetoothSelectFragment extends Fragment {
 
     private static final String PREFS_NAME = "BluetoothPrefs";
     private static final String KEY_DEFAULT_DEVICE = "DefaultDeviceAddress";
+    
+    private final Handler statusHandler = new Handler(Looper.getMainLooper());
+    private Runnable statusUpdater;
 
     @Nullable
     @Override
@@ -42,6 +50,7 @@ public class BluetoothSelectFragment extends Fragment {
 
         deviceList = view.findViewById(R.id.device_list);
         refreshButton = view.findViewById(R.id.refresh_button);
+        bluetoothStatus = view.findViewById(R.id.bluetooth_status);
 
         bluetoothAdapter = BluetoothAdapter.getDefaultAdapter();
 
@@ -60,8 +69,47 @@ public class BluetoothSelectFragment extends Fragment {
         });
 
         listPairedDevices();
+        startStatusUpdateLoop();
 
         return view;
+    }
+
+    private void startStatusUpdateLoop() {
+        statusUpdater = new Runnable() {
+            @Override
+            public void run() {
+                updateStatusUI();
+                statusHandler.postDelayed(this, 500);
+            }
+        };
+        statusHandler.post(statusUpdater);
+    }
+
+    private void updateStatusUI() {
+        if (getActivity() instanceof MainActivity && bluetoothStatus != null) {
+            MainActivity mainActivity = (MainActivity) getActivity();
+            boolean connected = mainActivity.isBluetoothConnected();
+            boolean connecting = mainActivity.isBluetoothConnecting();
+            
+            if (connected) {
+                bluetoothStatus.setText("Status: Connected");
+                bluetoothStatus.setTextColor(Color.GREEN);
+            } else if (connecting) {
+                bluetoothStatus.setText("Status: Connecting...");
+                bluetoothStatus.setTextColor(Color.YELLOW);
+            } else {
+                bluetoothStatus.setText("Status: Disconnected");
+                bluetoothStatus.setTextColor(Color.RED);
+            }
+        }
+    }
+
+    @Override
+    public void onDestroyView() {
+        super.onDestroyView();
+        if (statusHandler != null && statusUpdater != null) {
+            statusHandler.removeCallbacks(statusUpdater);
+        }
     }
 
     private void listPairedDevices() {
@@ -71,8 +119,6 @@ public class BluetoothSelectFragment extends Fragment {
         }
 
         if (ActivityCompat.checkSelfPermission(getContext(), Manifest.permission.BLUETOOTH_CONNECT) != PackageManager.PERMISSION_GRANTED) {
-            // Permissions should be handled in MainActivity or here if needed.
-            // For simplicity, assuming granted as they are in manifest.
             return;
         }
 

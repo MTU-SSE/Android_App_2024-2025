@@ -9,21 +9,16 @@ import static android.os.SystemClock.uptimeMillis;
 
 import android.Manifest;
 import android.app.AlertDialog;
-import android.app.PendingIntent;
 import android.bluetooth.BluetoothAdapter;
 import android.bluetooth.BluetoothDevice;
 import android.bluetooth.BluetoothSocket;
-import android.content.BroadcastReceiver;
 import android.content.Context;
 import android.content.Intent;
-import android.content.IntentFilter;
 import android.content.SharedPreferences;
 import android.content.pm.PackageManager;
 import android.content.res.ColorStateList;
 import android.content.res.Configuration;
 import android.graphics.Color;
-import android.hardware.usb.UsbDevice;
-import android.hardware.usb.UsbDeviceConnection;
 import android.hardware.usb.UsbManager;
 import android.location.LocationListener;
 import android.location.LocationManager;
@@ -47,9 +42,6 @@ import androidx.core.app.ActivityCompat;
 import androidx.fragment.app.Fragment;
 
 import com.google.android.material.tabs.TabLayout;
-import com.hoho.android.usbserial.driver.UsbSerialDriver;
-import com.hoho.android.usbserial.driver.UsbSerialPort;
-import com.hoho.android.usbserial.driver.UsbSerialProber;
 import com.hoho.android.usbserial.util.SerialInputOutputManager;
 
 import java.io.File;
@@ -121,7 +113,6 @@ public class MainActivity extends AppCompatActivity {
     private ArrayList<BluetoothDevice> devices = new ArrayList<>();
     private ArrayAdapter<String> adapter;
 
-    private SerialInputOutputManager usbIoManager;
     private LocationManager locationManager;
     private LocationListener locationListener;
     private double gps_speed = -1;
@@ -256,7 +247,6 @@ public class MainActivity extends AppCompatActivity {
             }
         };
 
-        BurnOrCoast.setOnClickListener(v -> toggleStatsView());
         startGPSTracking();
 
         RecordingButton.setOnClickListener(v -> temp_logging_start());
@@ -397,7 +387,7 @@ public class MainActivity extends AppCompatActivity {
             try (InputStream inputStream = currentSocket.getInputStream()) {
                 byte[] buffer = new byte[1024];
                 int bytes;
-                while (currentSocket != null && currentSocket.isConnected() && currentSocket == bluetoothSocket) {
+                while (currentSocket.isConnected() && currentSocket == bluetoothSocket) {
                     bytes = inputStream.read(buffer);
                     if (bytes == -1) break;
                     if (bytes > 0) {
@@ -442,7 +432,7 @@ public class MainActivity extends AppCompatActivity {
         deviceNames.clear();
         devices.clear();
 
-        if (pairedDevices.size() > 0) {
+        if (!pairedDevices.isEmpty()) {
             for (BluetoothDevice device : pairedDevices) {
                 deviceNames.add(device.getName() + "\n" + device.getAddress());
                 devices.add(device);
@@ -823,7 +813,9 @@ public class MainActivity extends AppCompatActivity {
                     this.messageContent = this.messageContent << 8;
                     this.messageContent = this.messageContent | Integer.parseInt(hexBytes[i], 16);
                 }
-            } catch (Exception e) {}
+            } catch (Exception e) {
+                Log.i("SSE", e.getMessage());
+            }
             if (state == MessageBuilderState.COMPLETE) {
                 return new Message(this.messageType, this.messageID, this.messageContent);
             } else {
@@ -843,22 +835,12 @@ public class MainActivity extends AppCompatActivity {
         );
     }
 
-    private void toggleStatsView() {
-        TabLayout tabLayout = findViewById(R.id.tabLayout);
-        if (tabLayout != null) {
-            int currentTab = tabLayout.getSelectedTabPosition();
-            TabLayout.Tab nextTab = tabLayout.getTabAt((currentTab + 1) % 2);
-            if (nextTab != null) nextTab.select();
-        }
-    }
-
     private void startGPSTracking() {
         if (ActivityCompat.checkSelfPermission(this, Manifest.permission.ACCESS_FINE_LOCATION) != PackageManager.PERMISSION_GRANTED) {
             ActivityCompat.requestPermissions(this, new String[]{Manifest.permission.ACCESS_FINE_LOCATION}, LOCATION_REQUEST_CODE);
             return;
         }
         locationManager.requestLocationUpdates(LocationManager.GPS_PROVIDER, 100, 0, locationListener);
-        if (Latitude != null) Latitude.setText("ran");
     }
 
     private String getWifiIpAddress() {

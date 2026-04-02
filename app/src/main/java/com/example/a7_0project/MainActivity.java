@@ -71,12 +71,10 @@ import com.example.http_file_server.HttpServerService;
 
 public class MainActivity extends AppCompatActivity {
 
-    private static final String ACTION_USB_PERMISSION = "com.android.example.a7_0project.USB_PERMISSION";
     private static final UUID SPP_UUID = UUID.fromString("00001101-0000-1000-8000-00805F9B34FB");
     private static final String PREFS_NAME = "BluetoothPrefs";
     private static final String KEY_DEFAULT_DEVICE = "DefaultDeviceAddress";
 
-    private UsbManager usbManager;
     private BluetoothAdapter bluetoothAdapter;
     private BluetoothSocket bluetoothSocket;
     private boolean isBluetoothConnecting = false;
@@ -115,9 +113,6 @@ public class MainActivity extends AppCompatActivity {
     private TextView Longitude;
     private TextView IPAddress;
     private TextView rawBluetoothData;
-
-    private View DriverView;
-    private View StatsView;
 
     // Bluetooth UI components (now integrated into main activity)
     private ListView deviceList;
@@ -178,8 +173,6 @@ public class MainActivity extends AppCompatActivity {
         Longitude = findViewById(R.id.longitudeNumber);
         IPAddress = findViewById(R.id.IPAddrNumber);
         rawBluetoothData = findViewById(R.id.raw_bluetooth_data);
-        DriverView = findViewById(R.id.driver_view);
-        StatsView = findViewById(R.id.stats_view);
 
         // Bluetooth Setup
         deviceList = findViewById(R.id.device_list);
@@ -268,7 +261,6 @@ public class MainActivity extends AppCompatActivity {
 
         RecordingButton.setOnClickListener(v -> temp_logging_start());
 
-        this.usbManager = (UsbManager) getSystemService(Context.USB_SERVICE);
         this.bluetoothAdapter = BluetoothAdapter.getDefaultAdapter();
 
         TabLayout tabLayout = findViewById(R.id.tabLayout);
@@ -297,7 +289,6 @@ public class MainActivity extends AppCompatActivity {
             Log.i("SSE", "Activity started by USB device attachment.");
         }
 
-        auto_reconnect();
         startBluetoothAutoConnect();
         listPairedDevices();
     }
@@ -473,12 +464,6 @@ public class MainActivity extends AppCompatActivity {
     protected void onNewIntent(Intent intent) {
         super.onNewIntent(intent);
         setIntent(intent);
-        if (UsbManager.ACTION_USB_DEVICE_ATTACHED.equals(intent.getAction())) {
-            Log.i("SSE", "USB device attached while Activity is running.");
-            if (usbIoManager == null || usbIoManager.getState() == SerialInputOutputManager.State.STOPPED) {
-                auto_reconnect();
-            }
-        }
     }
 
     @Override
@@ -522,14 +507,11 @@ public class MainActivity extends AppCompatActivity {
     protected void onResume() {
         super.onResume();
         hideSystemUI();
-        IntentFilter filter = new IntentFilter(ACTION_USB_PERMISSION);
-        registerReceiver(usbPermissionReceiver, filter, RECEIVER_NOT_EXPORTED);
     }
 
     @Override
     protected void onPause() {
         super.onPause();
-        unregisterReceiver(usbPermissionReceiver);
     }
 
     @Override
@@ -545,100 +527,6 @@ public class MainActivity extends AppCompatActivity {
                 bluetoothSocket = null;
             }
         }
-    }
-
-    private final BroadcastReceiver usbPermissionReceiver = new BroadcastReceiver() {
-        public void onReceive(Context context, Intent intent) {
-            String action = intent.getAction();
-            if (ACTION_USB_PERMISSION.equals(action)) {
-                if (intent.getBooleanExtra(UsbManager.EXTRA_PERMISSION_GRANTED, false)) {
-                    Log.i("SSE", "USB permission GRANTED by user.");
-                    UsbDevice device = intent.getParcelableExtra(UsbManager.EXTRA_DEVICE);
-                    if (device != null) {
-                        try_to_connect_after_permission(device);
-                    }
-                } else {
-                    Log.w("SSE", "USB permission DENIED by user.");
-                    pushAlert("USB Permission", "Permission denied for USB device. Cannot connect.", "OK");
-                }
-            }
-        }
-    };
-
-    private void auto_reconnect() {
-        if (label1 != null) label1.setText("Attempting autoreconnect...");
-        final Handler handler = new Handler();
-        final int delay = 100;
-
-        handler.postDelayed(new Runnable() {
-            public void run() {
-                if (label2 != null) label2.setText("Checking for USB device...");
-
-                if (usbIoManager != null && usbIoManager.getState() != SerialInputOutputManager.State.STOPPED) {
-                    if (label1 != null) label1.setText("Connected");
-                    return;
-                }
-
-                if (usbManager.getDeviceList().isEmpty()) {
-                    if (label2 != null) label2.setText("No device found, trying again...");
-                    handler.postDelayed(this, delay);
-                    return;
-                }
-
-                UsbDevice device = usbManager.getDeviceList().values().iterator().next();
-
-                if (usbManager.hasPermission(device)) {
-                    if (label2 != null) label2.setText("Permission OK. Connecting...");
-                    try_to_connect_after_permission(device);
-                } else {
-                    if (label2 != null) label2.setText("Requesting USB permission...");
-                    PendingIntent permissionIntent = PendingIntent.getBroadcast(
-                            MainActivity.this, 0, new Intent(ACTION_USB_PERMISSION), PendingIntent.FLAG_IMMUTABLE
-                    );
-                    usbManager.requestPermission(device, permissionIntent);
-                }
-                handler.postDelayed(this, delay);
-            }
-        }, delay);
-    }
-
-    private void try_to_connect_after_permission(UsbDevice device) {
-        List<UsbSerialDriver> availableDrivers = UsbSerialProber.getDefaultProber().findAllDrivers(usbManager);
-        if (availableDrivers.isEmpty()) {
-            pushAlert("Error", "No USB serial drivers available.", "OK");
-            return;
-        }
-
-        UsbSerialDriver driver = null;
-        for (UsbSerialDriver d : availableDrivers) {
-            if (d.getDevice().equals(device)) {
-                driver = d;
-                break;
-            }
-        }
-
-        if (driver == null) {
-            Log.e("SSE", "No driver found for the permitted device.");
-            pushAlert("Error", "No compatible driver found.", "OK");
-            return;
-        }
-
-        UsbDeviceConnection connection = usbManager.openDevice(driver.getDevice());
-        if (connection == null) {
-            return;
-        }
-
-        UsbSerialPort port = driver.getPorts().get(0);
-
-        try {
-            port.open(connection);
-            port.setParameters(115200, 8, UsbSerialPort.STOPBITS_1, UsbSerialPort.PARITY_NONE);
-        } catch (IOException e) {
-            throw new RuntimeException(e);
-        }
-        SerialHandler serialHandler = new SerialHandler();
-        this.usbIoManager = new SerialInputOutputManager(port, serialHandler);
-        usbIoManager.start();
     }
 
     public class SerialHandler extends Fragment implements SerialInputOutputManager.Listener {
@@ -661,9 +549,7 @@ public class MainActivity extends AppCompatActivity {
 
         @Override
         public void onRunError(Exception e) {
-            usbIoManager.stop();
             pushAlert("On Run Error Called", Arrays.toString(e.getStackTrace()), "yikes");
-            auto_reconnect();
         }
     }
 

@@ -19,16 +19,18 @@ import android.content.pm.PackageManager;
 import android.content.res.ColorStateList;
 import android.content.res.Configuration;
 import android.graphics.Color;
-import android.hardware.usb.UsbManager;
 import android.location.LocationListener;
 import android.location.LocationManager;
 import android.net.wifi.WifiManager;
 import android.os.Bundle;
 import android.os.Handler;
+import android.text.Editable;
+import android.text.TextWatcher;
 import android.util.Log;
 import android.view.View;
 import android.widget.ArrayAdapter;
 import android.widget.Button;
+import android.widget.EditText;
 import android.widget.ImageView;
 import android.widget.ListView;
 import android.widget.ProgressBar;
@@ -91,6 +93,10 @@ public class MainActivity extends AppCompatActivity {
     private TextView SpeedLabel;
     private TextView SpeedNumber;
     private TextView SpeedNumber2;
+    private TextView LapLabel;
+    private TextView LapNumber;
+    private TextView TimerLabel;
+    private TextView TimerNumber;
     private ProgressBar RedlineIndicator;
     private ProgressBar ThrottlePositionBar;
     private Button RecordingButton;
@@ -105,6 +111,8 @@ public class MainActivity extends AppCompatActivity {
     private TextView Latitude;
     private TextView Longitude;
     private TextView IPAddress;
+    private TextView SimLapButton;
+    private TextView ResetLapsButton;
     private TextView rawBluetoothData;
 
     // Bluetooth UI components (now integrated into main activity)
@@ -114,6 +122,10 @@ public class MainActivity extends AppCompatActivity {
     private ArrayList<BluetoothDevice> devices = new ArrayList<>();
     private ArrayAdapter<String> adapter;
 
+    // Settings UI components
+    private EditText secretMultInput;
+    private Button simulateLapButton;
+
     private LocationManager locationManager;
     private LocationListener locationListener;
     private double gps_speed = -1;
@@ -122,6 +134,8 @@ public class MainActivity extends AppCompatActivity {
     private long errorTimestamp;
     private long ecu_speed_timestamp;
     public static boolean threadLock = false;
+    public int num_laps = 0;
+    public long lap_timestamp = 0;
 
     public double secret_mult = 1.0;
 
@@ -152,6 +166,10 @@ public class MainActivity extends AppCompatActivity {
         SpeedLabel = findViewById(R.id.speedLabel);
         SpeedNumber = findViewById(R.id.speedNumber);
         SpeedNumber2 = findViewById(R.id.speedNumber2);
+        LapLabel = findViewById(R.id.lapLabel);
+        LapNumber = findViewById(R.id.lapNumber);
+        TimerLabel = findViewById(R.id.lapTimerLabel);
+        TimerNumber = findViewById(R.id.lapTimerNumber);
         RedlineIndicator = findViewById(R.id.redlineIndicator);
         ThrottlePositionBar = findViewById(R.id.throttlePositionBar);
         RecordingButton = findViewById(R.id.recordingButton);
@@ -166,6 +184,8 @@ public class MainActivity extends AppCompatActivity {
         Latitude = findViewById(R.id.latitudeNumber);
         Longitude = findViewById(R.id.longitudeNumber);
         IPAddress = findViewById(R.id.IPAddrNumber);
+        SimLapButton = findViewById(R.id.simLapButton);
+        ResetLapsButton = findViewById(R.id.resetLapButton);
         rawBluetoothData = findViewById(R.id.raw_bluetooth_data);
 
         // Bluetooth Setup
@@ -187,6 +207,49 @@ public class MainActivity extends AppCompatActivity {
         }
         if (refreshButton != null) {
             refreshButton.setOnClickListener(v -> listPairedDevices());
+        }
+
+        // Settings Setup
+        secretMultInput = findViewById(R.id.secret_mult_input);
+        simulateLapButton = findViewById(R.id.simLapButton);
+
+        if (secretMultInput != null) {
+            secretMultInput.setText(String.valueOf(secret_mult));
+            secretMultInput.addTextChangedListener(new TextWatcher() {
+                @Override
+                public void beforeTextChanged(CharSequence s, int start, int count, int after) {}
+
+                @Override
+                public void onTextChanged(CharSequence s, int start, int before, int count) {
+                    try {
+                        secret_mult = Double.parseDouble(s.toString());
+                    } catch (NumberFormatException e) {
+                        // ignore invalid input
+                    }
+                }
+
+                @Override
+                public void afterTextChanged(Editable s) {}
+            });
+        }
+
+        if (simulateLapButton != null) {
+            simulateLapButton.setOnClickListener(v -> {
+                lap_timestamp = System.currentTimeMillis();
+                lap_number++;
+                if (LapNumber!= null) LapNumber.setText(String.valueOf(lap_number));
+                Toast.makeText(this, "Simulated Lap " + lap_number, Toast.LENGTH_SHORT).show();
+            });
+        }
+
+        if (ResetLapsButton != null) {
+            ResetLapsButton.setOnClickListener(v -> {
+                lap_number = 0;
+                lap_timestamp = 0;
+                LapNumber.setText("0");
+                TimerNumber.setText("0:00");
+                Toast.makeText(this, "Laps Reset", Toast.LENGTH_SHORT).show();
+            });
         }
 
         warningObjects[0] = new WarningBundle(
@@ -226,6 +289,22 @@ public class MainActivity extends AppCompatActivity {
                 if (race_start_timestamp != 0) {
                     append_csv();
                 }
+                
+                // Update Lap Timer UI
+                if (TimerNumber != null) {
+                    if (lap_timestamp == 0) {
+                        TimerNumber.setText("0:00");
+                    } else {
+                        long elapsed = System.currentTimeMillis() - lap_timestamp;
+                        int seconds = (int) (elapsed / 1000) % 60;
+                        int minutes = (int) ((elapsed / (1000 * 60)));
+                        TimerNumber.setText(String.format(Locale.ENGLISH, "%d:%02d", minutes, seconds));
+                    }
+                }
+                if (LapNumber != null) {
+                    LapNumber.setText(String.valueOf(lap_number));
+                }
+
                 data_frame.clear();
                 log_file_write_handler.postDelayed(this, log_timing);
             }
@@ -335,17 +414,17 @@ public class MainActivity extends AppCompatActivity {
         if (bluetoothAdapter.isDiscovering()) {
             bluetoothAdapter.cancelDiscovery();
         }
-        
+
         new Thread(() -> {
             BluetoothSocket tempSocket = null;
             try {
                 tempSocket = device.createInsecureRfcommSocketToServiceRecord(SPP_UUID);
-                
+
                 // Watchdog to enforce a short timeout (1.5s) to allow rapid retries if device is off
                 final BluetoothSocket socketToClose = tempSocket;
                 Thread watchdog = new Thread(() -> {
                     try {
-                        Thread.sleep(1500); 
+                        Thread.sleep(1500);
                         if (isBluetoothConnecting) {
                             try { socketToClose.close(); } catch (IOException ignored) {}
                         }
@@ -354,15 +433,15 @@ public class MainActivity extends AppCompatActivity {
                 watchdog.start();
 
                 tempSocket.connect();
-                watchdog.interrupt(); 
-                
+                watchdog.interrupt();
+
                 synchronized (this) {
                     if (bluetoothSocket != null) {
                         try { bluetoothSocket.close(); } catch (IOException ignored) {}
                     }
                     bluetoothSocket = tempSocket;
                 }
-                
+
                 isBluetoothConnecting = false;
                 runOnUiThread(() -> {
                     try {
@@ -579,6 +658,11 @@ public class MainActivity extends AppCompatActivity {
             if (message != null) {
                 log_message_received(message.messageID);
                 switch (message.messageID) {
+                    //signal from the lap button being pressed
+                    case 0x2:
+                        lap_timestamp = System.currentTimeMillis();
+                        lap_number++;
+                        break;
                     case 0x640:
                         int rpm = message.getContentVariable(0, 16);
                         RpmNumber.setText(String.format(Locale.ENGLISH, "%d", rpm));
@@ -849,7 +933,7 @@ public class MainActivity extends AppCompatActivity {
             }
         }
     }
-    
+
     private void hideSystemUI() {
         getWindow().getDecorView().setSystemUiVisibility(
                 View.SYSTEM_UI_FLAG_IMMERSIVE_STICKY

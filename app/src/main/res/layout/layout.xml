@@ -303,6 +303,8 @@
 
         <include layout="@layout/fragment_bluetooth_select" />
 
+        <include layout="@layout/view_settings" />
+
     </ViewFlipper>
 
     <com.google.android.material.tabs.TabLayout
@@ -337,6 +339,12 @@
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:text="Bluetooth" />
+
+        <com.google.android.material.tabs.TabItem
+            android:id="@+id/settingsTabitem"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="Settings" />
 
     </com.google.android.material.tabs.TabLayout>
 

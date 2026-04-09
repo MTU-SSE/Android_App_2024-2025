@@ -83,6 +83,7 @@ public class MainActivity extends AppCompatActivity {
 
     //all the data that we will be loggin'
     private Map<String, Object> data_frame = new ConcurrentHashMap<>();
+    private Map<String, Long> data_frame_timestamps = new ConcurrentHashMap<>();
     private Map<Integer, Integer> messageCounts = new ConcurrentHashMap<>();
 
     private TextView label1;
@@ -93,7 +94,6 @@ public class MainActivity extends AppCompatActivity {
     private TextView SpeedLabel;
     private TextView SpeedNumber;
     private TextView SpeedNumber2;
-    private TextView LapLabel;
     private TextView LapNumber;
     private TextView TimerLabel;
     private TextView TimerNumber;
@@ -166,7 +166,6 @@ public class MainActivity extends AppCompatActivity {
         SpeedLabel = findViewById(R.id.speedLabel);
         SpeedNumber = findViewById(R.id.speedNumber);
         SpeedNumber2 = findViewById(R.id.speedNumber2);
-        LapLabel = findViewById(R.id.lapLabel);
         LapNumber = findViewById(R.id.lapNumber);
         TimerLabel = findViewById(R.id.lapTimerLabel);
         TimerNumber = findViewById(R.id.lapTimerNumber);
@@ -184,7 +183,6 @@ public class MainActivity extends AppCompatActivity {
         Latitude = findViewById(R.id.latitudeNumber);
         Longitude = findViewById(R.id.longitudeNumber);
         IPAddress = findViewById(R.id.IPAddrNumber);
-        SimLapButton = findViewById(R.id.simLapButton);
         ResetLapsButton = findViewById(R.id.resetLapButton);
         rawBluetoothData = findViewById(R.id.raw_bluetooth_data);
 
@@ -235,19 +233,18 @@ public class MainActivity extends AppCompatActivity {
 
         if (simulateLapButton != null) {
             simulateLapButton.setOnClickListener(v -> {
-                lap_timestamp = System.currentTimeMillis();
-                lap_number++;
-                if (LapNumber!= null) LapNumber.setText(String.valueOf(lap_number));
+                lap_trigger();
                 Toast.makeText(this, "Simulated Lap " + lap_number, Toast.LENGTH_SHORT).show();
             });
         }
 
         if (ResetLapsButton != null) {
             ResetLapsButton.setOnClickListener(v -> {
-                lap_number = 0;
                 lap_timestamp = 0;
-                LapNumber.setText("0");
-                TimerNumber.setText("0:00");
+                lap_number = 0;
+                stopRecording();
+                TimerLabel.setText("Press");
+                TimerNumber.setVisibility(View.INVISIBLE);
                 Toast.makeText(this, "Laps Reset", Toast.LENGTH_SHORT).show();
             });
         }
@@ -305,7 +302,6 @@ public class MainActivity extends AppCompatActivity {
                     LapNumber.setText(String.valueOf(lap_number));
                 }
 
-                data_frame.clear();
                 log_file_write_handler.postDelayed(this, log_timing);
             }
         }, log_timing);
@@ -316,13 +312,13 @@ public class MainActivity extends AppCompatActivity {
             double lon = location.getLongitude();
             gps_speed = location.getSpeed() * 2.23693629;
             double time_millis = location.getTime();
-            data_frame.put("gps_time", time_millis);
+            updateDataFrame("gps_time", time_millis);
             Latitude.setText(String.format(Locale.ENGLISH, "%.4f", lat));
-            data_frame.put("gps_latitude", String.format(Locale.ENGLISH, "%.4f", lat));
+            updateDataFrame("gps_latitude", String.format(Locale.ENGLISH, "%.4f", lat));
             Longitude.setText(String.format(Locale.ENGLISH, "%.4f", lon));
-            data_frame.put("gps_longitude", String.format(Locale.ENGLISH, "%.4f", lon));
+            updateDataFrame("gps_longitude", String.format(Locale.ENGLISH, "%.4f", lon));
             GPSSpeed.setText(String.format(Locale.ENGLISH, "%.2f", gps_speed));
-            data_frame.put("gps_speed", gps_speed);
+            updateDataFrame("gps_speed", gps_speed);
             if ((uptimeMillis() - ecu_speed_timestamp) > 500) {
                 SpeedLabel.setText("Speed (GPS)");
                 handleSpeed(gps_speed);
@@ -595,6 +591,7 @@ public class MainActivity extends AppCompatActivity {
     @Override
     protected void onDestroy() {
         super.onDestroy();
+        stopRecording();
         synchronized (this) {
             if (bluetoothSocket != null) {
                 try {
@@ -631,16 +628,27 @@ public class MainActivity extends AppCompatActivity {
         }
     }
 
+    private void startRecording() {
+        if (race_start_timestamp == 0) {
+            create_csv();
+            if (RecordingButton != null) RecordingButton.setBackgroundTintList(ColorStateList.valueOf(Color.RED));
+        }
+    }
+
+    private void stopRecording() {
+        if (race_start_timestamp != 0) {
+            race_start_timestamp = 0;
+            if (RecordingButton != null) RecordingButton.setBackgroundTintList(ColorStateList.valueOf(Color.parseColor("#541414")));
+        }
+    }
+
     private void temp_logging_start() {
         try {
             if (race_start_timestamp == 0) {
-                create_csv();
-                race_start_timestamp = System.currentTimeMillis();
-                if (RecordingButton != null) RecordingButton.setBackgroundTintList(ColorStateList.valueOf(Color.RED));
+                startRecording();
             }
             else {
-                if (RecordingButton != null) RecordingButton.setBackgroundTintList(ColorStateList.valueOf(Color.parseColor("#541414")));
-                race_start_timestamp = 0;
+                stopRecording();
             }
         } catch (Exception e) {
             if (RecordingButton != null) RecordingButton.setBackgroundTintList(ColorStateList.valueOf(Color.BLUE));
@@ -652,6 +660,28 @@ public class MainActivity extends AppCompatActivity {
         messageCounts.merge(messageID, 1, Integer::sum);
     }
 
+    private void lap_trigger() {
+        lap_timestamp = System.currentTimeMillis();
+        lap_number++;
+        // Cycle logic: 0 -> 1 -> 2 -> 3 -> 4 -> 0
+        if (lap_number > 4) {
+            lap_number = 0;
+        }
+
+        if (lap_number == 1) {
+            // Laps 1-4: Start recording and show timer
+            startRecording();
+            LapNumber.setText(String.valueOf(lap_number));
+            TimerLabel.setText("Time");
+            TimerNumber.setVisibility(View.VISIBLE);
+        } else if (lap_number == 0) {
+            // Lap 0 (Waiting state): Stop recording and hide timer
+            stopRecording();
+            TimerLabel.setText("Press");
+            TimerNumber.setVisibility(View.INVISIBLE);
+        }
+    }
+
     private void handle_complete_message(Message message) {
         try {
             currentMessageBuilder = new StringMessageBuilder();
@@ -660,8 +690,7 @@ public class MainActivity extends AppCompatActivity {
                 switch (message.messageID) {
                     //signal from the lap button being pressed
                     case 0x2:
-                        lap_timestamp = System.currentTimeMillis();
-                        lap_number++;
+                        lap_trigger();
                         break;
                     case 0x640:
                         int rpm = message.getContentVariable(0, 16);
@@ -671,25 +700,25 @@ public class MainActivity extends AppCompatActivity {
                         StarterIndicator.setBackgroundTintList(ColorStateList.valueOf( rpm > 100 && rpm < 1500 ? Color.GREEN :Color.RED));
                         int throttlePosition = message.getContentVariable(48, 16) * 10;
                         ThrottlePositionBar.setProgress(throttlePosition);
-                        data_frame.put("throttle_position", String.format(Locale.ENGLISH, "%d", throttlePosition));
+                        updateDataFrame("throttle_position", String.format(Locale.ENGLISH, "%d", throttlePosition));
                         break;
                     case 0x641:
                         int fuelPressure = message.getContentVariable(32, 16) / 10;
                         if (FuelPressure != null) FuelPressure.setText(String.format(Locale.ENGLISH, "%d kPa", fuelPressure));
-                        data_frame.put("fuel_pressure", String.format("%d", fuelPressure));
+                        updateDataFrame("fuel_pressure", String.format("%d", fuelPressure));
                         int fuelInjectorTiming = message.getContentVariable(48, 8);
-                        data_frame.put("fuel_injector_timing", String.format("%d", fuelInjectorTiming));
+                        updateDataFrame("fuel_injector_timing", String.format("%d", fuelInjectorTiming));
                         int engineEfficiency = message.getContentVariable(56, 8);
-                        data_frame.put("engine_efficiency", String.format("%d", engineEfficiency));
+                        updateDataFrame("engine_efficiency", String.format("%d", engineEfficiency));
                         break;
                     case 0x642:
                         int engineLoad = message.getContentVariable(16, 16);
-                        data_frame.put("engine_load", String.format("%d", engineLoad));
+                        updateDataFrame("engine_load", String.format("%d", engineLoad));
                         break;
                     case 0x648:
                         //get the wheel speed from the back right wheel (what it's mapped to in the ECU)
                         double ecu_speed = (message.getContentVariable(48, 16) * 0.06213712 * secret_mult);
-                        data_frame.put("ecu_speed", String.format("%.1f", ecu_speed));
+                        updateDataFrame("ecu_speed", String.format("%.1f", ecu_speed));
                         SpeedLabel.setText("Speed (ECU)");
                         ecu_speed_timestamp = System.currentTimeMillis();
                         handleSpeed(ecu_speed);
@@ -699,10 +728,10 @@ public class MainActivity extends AppCompatActivity {
                         double coolant_temp = message.getContentVariable(48, 16) / 100.0;
                         CoolantTemperature.setText(String.format(Locale.ENGLISH, "%.3f L", coolant_temp));
                         int engineOilTemp = message.getContentVariable(8, 8) - 40;
-                        data_frame.put("oil_temp", String.format("%d", engineOilTemp));
+                        updateDataFrame("oil_temp", String.format("%d", engineOilTemp));
                         float voltage = message.getContentVariable(40, 8) / (float) 10;
                         VoltageNumber.setText(String.format(Locale.ENGLISH, "%.1f V", voltage));
-                        data_frame.put("battery_voltage", String.format("%.1f", voltage));
+                        updateDataFrame("battery_voltage", String.format("%.1f", voltage));
                         if (voltage < 10.5) {
                             if (warningObjects[5] != null) warningObjects[5].timestamp = System.currentTimeMillis();
                         }
@@ -790,17 +819,22 @@ public class MainActivity extends AppCompatActivity {
         alertDialog.show();
     }
 
+    private void updateDataFrame(String key, Object value) {
+        data_frame.put(key, value);
+        data_frame_timestamps.put(key, System.currentTimeMillis());
+    }
+
     private void create_csv() {
         SimpleDateFormat sdf = new SimpleDateFormat("yyyy-MM-dd__HH-mm-ss", Locale.getDefault());
         String filename = sdf.format(new Date()) + ".csv";
         File directory = getFilesDir();
         this.current_file = new File(directory, filename);
-        this.lap_number = 0;
         this.row = 0;
         this.distance = 0;
         this.race_start_timestamp = System.currentTimeMillis();
         this.lap_start_timestamp = 0;
         this.data_frame.clear();
+        this.data_frame_timestamps.clear();
         this.messageCounts.clear();
 
         try (FileWriter writer = new FileWriter(this.current_file)) {
@@ -818,21 +852,23 @@ public class MainActivity extends AppCompatActivity {
         if (this.current_file == null) return;
 
         for (Map.Entry<Integer, Integer> entry : messageCounts.entrySet()) {
-            data_frame.put(String.format(Locale.ENGLISH, "0x%X", entry.getKey()), entry.getValue());
+            updateDataFrame(String.format(Locale.ENGLISH, "0x%X", entry.getKey()), entry.getValue());
         }
         messageCounts.clear();
 
-        data_frame.put("unix_timestamp", System.currentTimeMillis());
-        data_frame.put("lap_unix_timestamp", System.currentTimeMillis() - this.lap_start_timestamp);
-        data_frame.put("row", row++);
-        data_frame.put("lap", lap_number);
-        data_frame.put("distance", distance);
+        updateDataFrame("unix_timestamp", System.currentTimeMillis());
+        updateDataFrame("lap_unix_timestamp", System.currentTimeMillis() - this.lap_start_timestamp);
+        updateDataFrame("row", row++);
+        updateDataFrame("lap_number", lap_number);
+        updateDataFrame("distance", distance);
 
         try (FileWriter writer = new FileWriter(this.current_file, true)) {
             List<String> rowValues = new ArrayList<>();
+            long currentTime = System.currentTimeMillis();
             for (String header : csv_headers) {
                 Object value = this.data_frame.get(header);
-                if (value != null) {
+                Long timestamp = this.data_frame_timestamps.get(header);
+                if (value != null && timestamp != null && (currentTime - timestamp) < 1200) {
                     if (value instanceof Double || value instanceof Float) {
                         rowValues.add(String.format(Locale.ENGLISH,"%.2f", value));
                     } else {
@@ -851,7 +887,7 @@ public class MainActivity extends AppCompatActivity {
     }
 
     public String[] csv_headers = {
-            "row", "unix_timestamp", "lap_unix_timestamp", "distance", "lap_distance", "gps_time",
+            "row", "lap_number", "unix_timestamp", "lap_unix_timestamp", "distance", "lap_distance", "gps_time",
             "gps_latitude", "gps_longitude", "gps_speed", "ecu_speed", "throttle_position", "engine_efficiency",
             "oil_temp", "engine_load", "wheel_speed_ecu", "wheel_speed_arduino", "fuel_injector_timing",
             "acceleration_lateral", "acceleration_longitudinal", "acceleration_vertical", "fuel_pressure",

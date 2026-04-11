@@ -12,6 +12,7 @@
     <string name="settings_tab_label">Settings</string>
     <string name="secret_multiplier_label">Secret Multiplier:</string>
     <string name="simulate_lap_label">Simulate Lap Button Press</string>
+    <string name="lap_timer_offset_none">+/- None</string>
 
     <string name="lorem_ipsum">
         Lorem ipsum dolor sit amet, consectetur adipiscing elit. Nam in scelerisque sem. Mauris

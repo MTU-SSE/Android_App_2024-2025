@@ -8,17 +8,48 @@
     android:background="#000000">
 
     <TextView
-        android:id="@+id/lapTimerNumber"
+        android:id="@+id/idealStartCountdown"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
+        android:layout_marginEnd="40dp"
         android:fontFamily="sans-serif-black"
         android:scaleY="1.1"
         android:text="0:00"
         android:textAlignment="center"
         android:textColor="#00FF00"
+        android:textSize="60sp"
+        android:typeface="monospace"
+        app:layout_constraintBottom_toBottomOf="@+id/lapOffsetNumber"
+        app:layout_constraintEnd_toStartOf="@+id/lapOffsetNumber"
+        app:layout_constraintTop_toTopOf="@+id/lapOffsetNumber" />
+
+    <TextView
+        android:id="@+id/lapOffsetNumber"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:fontFamily="sans-serif-black"
+        android:scaleY="1.1"
+        android:text="+/- None"
+        android:textAlignment="center"
+        android:textColor="#9C27B0"
+        android:textSize="60sp"
+        android:typeface="monospace"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintHorizontal_bias="0.865"
+        app:layout_constraintStart_toEndOf="@+id/lapTimerNumber"
+        app:layout_constraintTop_toBottomOf="@+id/rpmNumber" />
+
+    <TextView
+        android:id="@+id/lapTimerNumber"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:fontFamily="sans-serif-black"
+        android:scaleY="1.1"
+        android:text="35:10"
+        android:textAlignment="center"
+        android:textColor="#00FF00"
         android:textSize="75sp"
         android:typeface="monospace"
-        android:visibility="invisible"
         app:layout_constraintBottom_toBottomOf="@+id/lapTimerLabel"
         app:layout_constraintEnd_toStartOf="@+id/starterIndicator"
         app:layout_constraintStart_toEndOf="@+id/lapTimerLabel"
@@ -35,7 +66,6 @@
         android:textColor="#00FF00"
         android:textSize="40sp"
         android:typeface="monospace"
-        android:visibility="visible"
         app:layout_constraintBottom_toBottomOf="parent"
         app:layout_constraintEnd_toStartOf="@+id/lapTimerNumber"
         app:layout_constraintStart_toEndOf="@+id/lapNumber"
@@ -114,7 +144,7 @@
         app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintHorizontal_bias="0.838"
         app:layout_constraintStart_toEndOf="@+id/starterIndicator"
-        app:layout_constraintTop_toBottomOf="@+id/rpmNumber" />
+        app:layout_constraintTop_toBottomOf="@+id/lapOffsetNumber" />
 
     <TextView
         android:id="@+id/speedNumber"
@@ -146,7 +176,7 @@
         android:textAllCaps="false"
         android:textAppearance="@style/TextAppearance.AppCompat.Large"
         android:textColor="#00FF00"
-        android:textSize="120sp"
+        android:textSize="100sp"
         android:textStyle="bold"
         android:typeface="monospace"
         app:layout_constraintEnd_toEndOf="parent"
@@ -163,7 +193,7 @@
         android:text="RPM"
         android:textAlignment="center"
         android:textColor="#00FF00"
-        android:textSize="60sp"
+        android:textSize="55sp"
         android:typeface="monospace"
         app:layout_constraintBottom_toTopOf="@+id/rpmNumber"
         app:layout_constraintEnd_toEndOf="@+id/rpmNumber"
@@ -179,7 +209,7 @@
         android:text="Speed"
         android:textAlignment="center"
         android:textColor="#00FF00"
-        android:textSize="60sp"
+        android:textSize="55sp"
         android:typeface="monospace"
         app:layout_constraintBottom_toTopOf="@+id/speedNumber"
         app:layout_constraintEnd_toEndOf="@+id/speedNumber"

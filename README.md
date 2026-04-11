@@ -1,3 +1,7 @@
+# Questions?
+
+***Please Please Please email john@umbriac.com with any questions!!***
+
 # How to upload a new version of the app to the phone
 
 ### From an .apk file
@@ -14,3 +18,15 @@
 10. Click "More options" then "Install without scanning" (it's ok to scan, just takes longer)
 
 *Google will be breaking this install method soon (see https://www.androidauthority.com/google-android-sideloading-unverified-apps-new-rules-3650343/)*
+
+
+
+# Important things to know when trying to read this mess
+
+## Important files
+
+- app/src/main/java/com/example/a7_0project/MainActivity.java
+  - This is the main file that most everything will go in.
+  - The code here handles reading from the bluetooth connection, updating the screen, a much more
+- app/src/main/AndroidManifest.xml
+  - This is how you set system 

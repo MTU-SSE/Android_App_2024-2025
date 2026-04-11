@@ -19,6 +19,7 @@ import android.content.pm.PackageManager;
 import android.content.res.ColorStateList;
 import android.content.res.Configuration;
 import android.graphics.Color;
+import android.location.Location;
 import android.location.LocationListener;
 import android.location.LocationManager;
 import android.net.wifi.WifiManager;
@@ -30,6 +31,7 @@ import android.util.Log;
 import android.view.View;
 import android.widget.ArrayAdapter;
 import android.widget.Button;
+import android.widget.CheckBox;
 import android.widget.EditText;
 import android.widget.ImageView;
 import android.widget.ListView;
@@ -68,6 +70,7 @@ public class MainActivity extends AppCompatActivity {
     private static final UUID SPP_UUID = UUID.fromString("00001101-0000-1000-8000-00805F9B34FB");
     private static final String PREFS_NAME = "BluetoothPrefs";
     private static final String KEY_DEFAULT_DEVICE = "DefaultDeviceAddress";
+    private static final String LAP_PREFS_NAME = "LapTimingPrefs";
 
     private BluetoothAdapter bluetoothAdapter;
     private BluetoothSocket bluetoothSocket;
@@ -76,44 +79,29 @@ public class MainActivity extends AppCompatActivity {
     //data that needs to be tracked across frames
     private long row;
     private int lap_number = 0;
-    private long lap_start_timestamp;
     private long race_start_timestamp;
+    public long lap_timestamp = 0;
+    public static long RACE_LENGTH = 36 * 1000 * 60;
+    //public static long RACE_LENGTH = 1000 * 60;
     private double distance;
     private File current_file;
+
+    // GPS Lap Counter variables
+    private double startLatitude = 0, startLongitude = 0;
+    private boolean hasLeftStartArea = false;
 
     //all the data that we will be loggin'
     private Map<String, Object> data_frame = new ConcurrentHashMap<>();
     private Map<String, Long> data_frame_timestamps = new ConcurrentHashMap<>();
     private Map<Integer, Integer> messageCounts = new ConcurrentHashMap<>();
 
-    private TextView label1;
-    private TextView label2;
     private StringMessageBuilder currentMessageBuilder;
-    private TextView RpmNumber;
-    private TextView RpmNumber2;
-    private TextView SpeedLabel;
-    private TextView SpeedNumber;
-    private TextView SpeedNumber2;
-    private TextView LapNumber;
-    private TextView TimerLabel;
-    private TextView TimerNumber;
-    private ProgressBar RedlineIndicator;
-    private ProgressBar ThrottlePositionBar;
-    private Button RecordingButton;
-    private TextView VoltageNumber;
-    private TextView FuelPressure;
-    private TextView LambdaNumber;
-    private TextView CoolantTemperature;
-    private Button StarterIndicator;
-    private Button EngineIndicator;
-    private TextView BurnOrCoast;
-    private TextView GPSSpeed;
-    private TextView Latitude;
-    private TextView Longitude;
-    private TextView IPAddress;
-    private TextView SimLapButton;
-    private TextView ResetLapsButton;
-    private TextView rawBluetoothData;
+    private TextView RpmNumber, RpmNumber2, SpeedLabel, SpeedNumber, SpeedNumber2, LapNumber,
+            TimerLabel, TimerNumber, LapOffsetTimer, IdealStartCountdown, VoltageNumber, FuelPressure, LambdaNumber,
+            CoolantTemperature, BurnOrCoast, GPSSpeed, Latitude, Longitude, IPAddress,
+            ResetLapButton, rawBluetoothData, ErrorNotif, hasLeftStartAreaIndicator;
+    private ProgressBar RedlineIndicator, ThrottlePositionBar;
+    private Button RecordingButton, StarterIndicator, EngineIndicator;
 
     // Bluetooth UI components (now integrated into main activity)
     private ListView deviceList;
@@ -126,16 +114,16 @@ public class MainActivity extends AppCompatActivity {
     private EditText secretMultInput;
     private Button simulateLapButton;
 
+    // Lap Timing UI components
+    private EditText lap1Input, lap2Input, lap3Input, lap4Input;
+    public double[] expectedLapTimes = {517.0, 517.0, 517.0, 517.0, 0, 0, 0, 0, 0, 0};
+
     private LocationManager locationManager;
     private LocationListener locationListener;
     private double gps_speed = -1;
     private int LOCATION_REQUEST_CODE = 100;
-    private TextView ErrorNotif;
-    private long errorTimestamp;
-    private long ecu_speed_timestamp;
+    private long errorTimestamp, ecu_speed_timestamp;
     public static boolean threadLock = false;
-    public int num_laps = 0;
-    public long lap_timestamp = 0;
 
     public double secret_mult = 1.0;
 
@@ -158,8 +146,6 @@ public class MainActivity extends AppCompatActivity {
         setContentView(R.layout.layout);
 
         //get references to all the UI elements
-        label1 = findViewById(R.id.label1);
-        label2 = findViewById(R.id.label2);
         ErrorNotif = findViewById(R.id.errorNotif);
         RpmNumber = findViewById(R.id.rpmNumber);
         RpmNumber2 = findViewById(R.id.rpmNumber2);
@@ -169,6 +155,8 @@ public class MainActivity extends AppCompatActivity {
         LapNumber = findViewById(R.id.lapNumber);
         TimerLabel = findViewById(R.id.lapTimerLabel);
         TimerNumber = findViewById(R.id.lapTimerNumber);
+        LapOffsetTimer = findViewById(R.id.lapOffsetNumber);
+        IdealStartCountdown = findViewById(R.id.idealStartCountdown);
         RedlineIndicator = findViewById(R.id.redlineIndicator);
         ThrottlePositionBar = findViewById(R.id.throttlePositionBar);
         RecordingButton = findViewById(R.id.recordingButton);
@@ -183,7 +171,7 @@ public class MainActivity extends AppCompatActivity {
         Latitude = findViewById(R.id.latitudeNumber);
         Longitude = findViewById(R.id.longitudeNumber);
         IPAddress = findViewById(R.id.IPAddrNumber);
-        ResetLapsButton = findViewById(R.id.resetLapButton);
+        ResetLapButton = findViewById(R.id.resetLapButton);
         rawBluetoothData = findViewById(R.id.raw_bluetooth_data);
 
         // Bluetooth Setup
@@ -210,6 +198,9 @@ public class MainActivity extends AppCompatActivity {
         // Settings Setup
         secretMultInput = findViewById(R.id.secret_mult_input);
         simulateLapButton = findViewById(R.id.simLapButton);
+        hasLeftStartAreaIndicator = findViewById(R.id.hasLeftStartAreaIndicator);
+
+        SharedPreferences prefs = getSharedPreferences(LAP_PREFS_NAME, Context.MODE_PRIVATE);
 
         if (secretMultInput != null) {
             secretMultInput.setText(String.valueOf(secret_mult));
@@ -238,13 +229,32 @@ public class MainActivity extends AppCompatActivity {
             });
         }
 
-        if (ResetLapsButton != null) {
-            ResetLapsButton.setOnClickListener(v -> {
+        // Lap Timing Setup
+        lap1Input = findViewById(R.id.lap1_input);
+        lap2Input = findViewById(R.id.lap2_input);
+        lap3Input = findViewById(R.id.lap3_input);
+        lap4Input = findViewById(R.id.lap4_input);
+
+        setupLapInput(lap1Input, "lap1", 0);
+        setupLapInput(lap2Input, "lap2", 1);
+        setupLapInput(lap3Input, "lap3", 2);
+        setupLapInput(lap4Input, "lap4", 3);
+
+        if (ResetLapButton != null) {
+            ResetLapButton.setOnClickListener(v -> {
                 lap_timestamp = 0;
                 lap_number = 0;
                 stopRecording();
+                startLatitude = 0;
+                startLongitude = 0;
+                hasLeftStartArea = false;
+                if (hasLeftStartAreaIndicator != null) {
+                    hasLeftStartAreaIndicator.setText("NO");
+                    hasLeftStartAreaIndicator.setTextColor(Color.RED);
+                }
                 TimerLabel.setText("Press");
-                TimerNumber.setVisibility(View.INVISIBLE);
+                LapOffsetTimer.setText("+/- None");
+                LapOffsetTimer.setTextColor(Color.parseColor("#9C27B0"));
                 Toast.makeText(this, "Laps Reset", Toast.LENGTH_SHORT).show();
             });
         }
@@ -289,10 +299,10 @@ public class MainActivity extends AppCompatActivity {
                 
                 // Update Lap Timer UI
                 if (TimerNumber != null) {
-                    if (lap_timestamp == 0) {
+                    if (lap_timestamp == 0 || race_start_timestamp == 0) {
                         TimerNumber.setText("0:00");
                     } else {
-                        long elapsed = System.currentTimeMillis() - lap_timestamp;
+                        long elapsed = (race_start_timestamp + ((35 * 60) + 10) * 1000) - System.currentTimeMillis();
                         int seconds = (int) (elapsed / 1000) % 60;
                         int minutes = (int) ((elapsed / (1000 * 60)));
                         TimerNumber.setText(String.format(Locale.ENGLISH, "%d:%02d", minutes, seconds));
@@ -300,6 +310,33 @@ public class MainActivity extends AppCompatActivity {
                 }
                 if (LapNumber != null) {
                     LapNumber.setText(String.valueOf(lap_number));
+                }
+
+                // Update Ideal Start Countdown
+                if (IdealStartCountdown != null && race_start_timestamp != 0 && lap_number > 0 && lap_number <= 4) {
+                    double ideal_next_start = race_start_timestamp;
+                    for (int i = 0; i < lap_number && i < expectedLapTimes.length; i++) {
+                        ideal_next_start += expectedLapTimes[i] * 1000;
+                    }
+                    //old code for countdown
+                    long remainingMillis = (long) ideal_next_start - System.currentTimeMillis();
+
+                    boolean isNegative = remainingMillis < 0;
+                    long absMillis = Math.abs(remainingMillis);
+                    int seconds = (int) (absMillis / 1000) % 60;
+                    int minutes = (int) (absMillis / (1000 * 60));
+
+                    String formatted = String.format(Locale.ENGLISH, "%s%d:%02d", isNegative ? "-" : "", minutes, seconds);
+                    IdealStartCountdown.setText(formatted);
+                    IdealStartCountdown.setTextColor(isNegative ? Color.RED : Color.GREEN);
+                } else if (IdealStartCountdown != null) {
+                    IdealStartCountdown.setText("0:00");
+                    IdealStartCountdown.setTextColor(Color.GREEN);
+                }
+
+                if (race_start_timestamp != 0 && System.currentTimeMillis() > RACE_LENGTH + race_start_timestamp) {
+                    lap_number = -1;
+                    lap_trigger();
                 }
 
                 log_file_write_handler.postDelayed(this, log_timing);
@@ -319,7 +356,41 @@ public class MainActivity extends AppCompatActivity {
             updateDataFrame("gps_longitude", String.format(Locale.ENGLISH, "%.4f", lon));
             GPSSpeed.setText(String.format(Locale.ENGLISH, "%.2f", gps_speed));
             updateDataFrame("gps_speed", gps_speed);
-            if ((uptimeMillis() - ecu_speed_timestamp) > 500) {
+
+            // GPS Lap Counter Logic
+            if (race_start_timestamp != 0) {
+                if (startLatitude == 0 && startLongitude == 0) {
+                    startLatitude = lat;
+                    startLongitude = lon;
+                    hasLeftStartArea = false;
+                    if (hasLeftStartAreaIndicator != null) {
+                        hasLeftStartAreaIndicator.setText("NO");
+                        hasLeftStartAreaIndicator.setTextColor(Color.RED);
+                    }
+                } else {
+                    float[] results = new float[1];
+                    Location.distanceBetween(startLatitude, startLongitude, lat, lon, results);
+                    float distanceInMeters = results[0];
+                    float distanceInFeet = distanceInMeters * 3.28084f;
+
+                    if (!hasLeftStartArea && distanceInFeet > 100) {
+                        hasLeftStartArea = true;
+                        if (hasLeftStartAreaIndicator != null) {
+                            hasLeftStartAreaIndicator.setText("YES");
+                            hasLeftStartAreaIndicator.setTextColor(Color.GREEN);
+                        }
+                    } else if (hasLeftStartArea && distanceInFeet < 20) {
+                        lap_trigger();
+                        hasLeftStartArea = false;
+                        if (hasLeftStartAreaIndicator != null) {
+                            hasLeftStartAreaIndicator.setText("NO");
+                            hasLeftStartAreaIndicator.setTextColor(Color.RED);
+                        }
+                    }
+                }
+            }
+
+            if ((System.currentTimeMillis() - ecu_speed_timestamp) > 500) {
                 SpeedLabel.setText("Speed (GPS)");
                 handleSpeed(gps_speed);
             }
@@ -360,11 +431,41 @@ public class MainActivity extends AppCompatActivity {
             public void onTabReselected(TabLayout.Tab tab) {}
         });
 
-        if (label1 != null) label1.setText(getWifiIpAddress());
         IPAddress.setText("http://" + getWifiIpAddress() + ":8080");
 
         startBluetoothAutoConnect();
         listPairedDevices();
+    }
+
+    private void setupLapInput(EditText editText, String key, int index) {
+        if (editText == null) return;
+
+        SharedPreferences prefs = getSharedPreferences(LAP_PREFS_NAME, Context.MODE_PRIVATE);
+        String savedValue = prefs.getString(key, "517");
+        editText.setText(savedValue);
+
+        try {
+            expectedLapTimes[index] = Double.parseDouble(savedValue);
+        } catch (NumberFormatException ignored) {}
+
+        editText.addTextChangedListener(new TextWatcher() {
+            @Override
+            public void beforeTextChanged(CharSequence s, int start, int count, int after) {}
+
+            @Override
+            public void onTextChanged(CharSequence s, int start, int before, int count) {
+                String val = s.toString();
+                prefs.edit().putString(key, val).apply();
+                try {
+                    expectedLapTimes[index] = Double.parseDouble(val);
+                } catch (NumberFormatException e) {
+                    // ignore invalid input
+                }
+            }
+
+            @Override
+            public void afterTextChanged(Editable s) {}
+        });
     }
 
     private void startBluetoothAutoConnect() {
@@ -664,21 +765,51 @@ public class MainActivity extends AppCompatActivity {
         lap_timestamp = System.currentTimeMillis();
         lap_number++;
         // Cycle logic: 0 -> 1 -> 2 -> 3 -> 4 -> 0
-        if (lap_number > 4) {
-            lap_number = 0;
-        }
 
         if (lap_number == 1) {
-            // Laps 1-4: Start recording and show timer
+            // Laps 1-4: Start recording
             startRecording();
             LapNumber.setText(String.valueOf(lap_number));
             TimerLabel.setText("Time");
-            TimerNumber.setVisibility(View.VISIBLE);
+            LapOffsetTimer.setText("+/- None");
+            LapOffsetTimer.setTextColor(Color.parseColor("#9C27B0"));
         } else if (lap_number == 0) {
-            // Lap 0 (Waiting state): Stop recording and hide timer
+            // Lap 0 (Waiting state): Stop recording
             stopRecording();
+            race_start_timestamp = 0;
             TimerLabel.setText("Press");
-            TimerNumber.setVisibility(View.INVISIBLE);
+            LapOffsetTimer.setText("+/- None");
+            LapOffsetTimer.setTextColor(Color.parseColor("#9C27B0"));
+        }
+        else {
+            //we have the expected time of each lap
+            //we have the current lap number
+            //we have a timestamp of when this lap started
+
+            //we want the expected lap duration - the (lap timestamp + ideal lap end timestamp)
+            //the ultimate goal here is to get the amount faster/slower than the expected lap time the driver needs to be to stay on pace
+            // (have the next lap begin when it's expected to begin, i.e. x seconds after the race started, calculated by adding up the expected lap times)
+
+            double expected_lap_end_time = race_start_timestamp;
+            for (int i = 0; i < lap_number && i < expectedLapTimes.length; i++) {
+                expected_lap_end_time += expectedLapTimes[i] * 1000;
+            }
+            //double lap_offset_time = (expectedLapTimes[lap_number - 1] * 1000 - (lap_timestamp - expected_lap_end_time)) / 1000;
+            double lap_offset_time = (expected_lap_end_time - (lap_timestamp + (expectedLapTimes[Math.min(lap_number, expectedLapTimes.length) - 1] * 1000))) / 1000;
+            double absSeconds = Math.abs(lap_offset_time);
+            int minutes = (int) (absSeconds / 60);
+            int seconds = (int) (absSeconds % 60);
+
+            String timeFormatted = String.format(Locale.ENGLISH, "%d:%02d", minutes, seconds);
+
+            if (lap_offset_time > 0) {
+                LapOffsetTimer.setText(String.format(Locale.ENGLISH, "+%s", timeFormatted));
+                LapOffsetTimer.setTextColor(Color.YELLOW);
+            }
+            else {
+                LapOffsetTimer.setText(String.format(Locale.ENGLISH, "-%s", timeFormatted));
+                LapOffsetTimer.setTextColor(Color.RED);
+            }
         }
     }
 
@@ -690,7 +821,9 @@ public class MainActivity extends AppCompatActivity {
                 switch (message.messageID) {
                     //signal from the lap button being pressed
                     case 0x2:
-                        lap_trigger();
+                        if (race_start_timestamp == 0) {
+                            lap_trigger();
+                        }
                         break;
                     case 0x640:
                         int rpm = message.getContentVariable(0, 16);
@@ -737,7 +870,7 @@ public class MainActivity extends AppCompatActivity {
                         }
                         break;
                     case 0x64c:
-                        for (int i = 0; i < 9; i++) {
+                        for (int i = 0; i < 9 && i < warningObjects.length; i++) {
                             if (message.getContentVariable(40 + i, 1) == 1) {
                                 if (warningObjects[i] != null) {
                                     warningObjects[i].timestamp = System.currentTimeMillis();
@@ -832,7 +965,9 @@ public class MainActivity extends AppCompatActivity {
         this.row = 0;
         this.distance = 0;
         this.race_start_timestamp = System.currentTimeMillis();
-        this.lap_start_timestamp = 0;
+        this.startLatitude = 0;
+        this.startLongitude = 0;
+        this.hasLeftStartArea = false;
         this.data_frame.clear();
         this.data_frame_timestamps.clear();
         this.messageCounts.clear();
@@ -857,7 +992,7 @@ public class MainActivity extends AppCompatActivity {
         messageCounts.clear();
 
         updateDataFrame("unix_timestamp", System.currentTimeMillis());
-        updateDataFrame("lap_unix_timestamp", System.currentTimeMillis() - this.lap_start_timestamp);
+        updateDataFrame("lap_unix_timestamp", System.currentTimeMillis() - this.lap_timestamp);
         updateDataFrame("row", row++);
         updateDataFrame("lap_number", lap_number);
         updateDataFrame("distance", distance);
@@ -950,6 +1085,8 @@ public class MainActivity extends AppCompatActivity {
             }
             return state;
         }
+
+        //convert the string builder to a message object
         public Message getMessage() {
             String result = stringBuilder.toString();
             String[] hexBytes = result.trim().split(" ");

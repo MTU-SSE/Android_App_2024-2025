@@ -1,0 +1,105 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:orientation="vertical"
+    android:padding="16dp"
+    android:background="#000000">
+
+    <TextView
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text="Enter the expected duration of each lap in seconds"
+        android:textColor="#00FF00"
+        android:textSize="18sp"
+        android:layout_marginBottom="16dp" />
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="horizontal"
+        android:layout_marginBottom="8dp">
+        <TextView
+            android:layout_width="100dp"
+            android:layout_height="wrap_content"
+            android:text="Lap 1:"
+            android:textColor="#00FF00" />
+
+        <EditText
+            android:id="@+id/lap1_input"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:backgroundTint="#00FF00"
+            android:importantForAutofill="no"
+            android:inputType="numberDecimal"
+            android:text="517"
+            android:textColor="#00FF00" />
+    </LinearLayout>
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="horizontal"
+        android:layout_marginBottom="8dp">
+        <TextView
+            android:layout_width="100dp"
+            android:layout_height="wrap_content"
+            android:text="Lap 2:"
+            android:textColor="#00FF00" />
+
+        <EditText
+            android:id="@+id/lap2_input"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:backgroundTint="#00FF00"
+            android:importantForAutofill="no"
+            android:inputType="numberDecimal"
+            android:text="517"
+            android:textColor="#00FF00" />
+    </LinearLayout>
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="horizontal"
+        android:layout_marginBottom="8dp">
+        <TextView
+            android:layout_width="100dp"
+            android:layout_height="wrap_content"
+            android:text="Lap 3:"
+            android:textColor="#00FF00" />
+
+        <EditText
+            android:id="@+id/lap3_input"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:backgroundTint="#00FF00"
+            android:importantForAutofill="no"
+            android:inputType="numberDecimal"
+            android:text="517"
+            android:textColor="#00FF00" />
+    </LinearLayout>
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="horizontal"
+        android:layout_marginBottom="8dp">
+        <TextView
+            android:layout_width="100dp"
+            android:layout_height="wrap_content"
+            android:text="Lap 4:"
+            android:textColor="#00FF00" />
+
+        <EditText
+            android:id="@+id/lap4_input"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:backgroundTint="#00FF00"
+            android:importantForAutofill="no"
+            android:inputType="numberDecimal"
+            android:text="517"
+            android:textColor="#00FF00" />
+    </LinearLayout>
+
+</LinearLayout>

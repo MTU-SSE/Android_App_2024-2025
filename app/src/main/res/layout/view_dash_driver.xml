@@ -19,6 +19,7 @@
         android:textColor="#00FF00"
         android:textSize="60sp"
         android:typeface="monospace"
+        android:visibility="invisible"
         app:layout_constraintBottom_toBottomOf="@+id/lapOffsetNumber"
         app:layout_constraintEnd_toStartOf="@+id/lapOffsetNumber"
         app:layout_constraintTop_toTopOf="@+id/lapOffsetNumber" />
@@ -34,6 +35,7 @@
         android:textColor="#9C27B0"
         android:textSize="60sp"
         android:typeface="monospace"
+        android:visibility="invisible"
         app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintHorizontal_bias="0.865"
         app:layout_constraintStart_toEndOf="@+id/lapTimerNumber"

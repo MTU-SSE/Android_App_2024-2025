@@ -86,10 +86,6 @@ public class MainActivity extends AppCompatActivity {
     private double distance;
     private File current_file;
 
-    // GPS Lap Counter variables
-    private double startLatitude = 0, startLongitude = 0;
-    private boolean hasLeftStartArea = false;
-
     //all the data that we will be loggin'
     private Map<String, Object> data_frame = new ConcurrentHashMap<>();
     private Map<String, Long> data_frame_timestamps = new ConcurrentHashMap<>();
@@ -99,7 +95,7 @@ public class MainActivity extends AppCompatActivity {
     private TextView RpmNumber, RpmNumber2, SpeedLabel, SpeedNumber, SpeedNumber2, LapNumber,
             TimerLabel, TimerNumber, LapOffsetTimer, IdealStartCountdown, VoltageNumber, FuelPressure, LambdaNumber,
             CoolantTemperature, BurnOrCoast, GPSSpeed, Latitude, Longitude, IPAddress,
-            ResetLapButton, rawBluetoothData, ErrorNotif, hasLeftStartAreaIndicator;
+            ResetLapButton, rawBluetoothData, ErrorNotif;
     private ProgressBar RedlineIndicator, ThrottlePositionBar;
     private Button RecordingButton, StarterIndicator, EngineIndicator;
 
@@ -198,7 +194,6 @@ public class MainActivity extends AppCompatActivity {
         // Settings Setup
         secretMultInput = findViewById(R.id.secret_mult_input);
         simulateLapButton = findViewById(R.id.simLapButton);
-        hasLeftStartAreaIndicator = findViewById(R.id.hasLeftStartAreaIndicator);
 
         SharedPreferences prefs = getSharedPreferences(LAP_PREFS_NAME, Context.MODE_PRIVATE);
 
@@ -245,13 +240,6 @@ public class MainActivity extends AppCompatActivity {
                 lap_timestamp = 0;
                 lap_number = 0;
                 stopRecording();
-                startLatitude = 0;
-                startLongitude = 0;
-                hasLeftStartArea = false;
-                if (hasLeftStartAreaIndicator != null) {
-                    hasLeftStartAreaIndicator.setText("NO");
-                    hasLeftStartAreaIndicator.setTextColor(Color.RED);
-                }
                 TimerLabel.setText("Press");
                 LapOffsetTimer.setText("+/- None");
                 LapOffsetTimer.setTextColor(Color.parseColor("#9C27B0"));
@@ -356,39 +344,6 @@ public class MainActivity extends AppCompatActivity {
             updateDataFrame("gps_longitude", String.format(Locale.ENGLISH, "%.4f", lon));
             GPSSpeed.setText(String.format(Locale.ENGLISH, "%.2f", gps_speed));
             updateDataFrame("gps_speed", gps_speed);
-
-            // GPS Lap Counter Logic
-            if (race_start_timestamp != 0) {
-                if (startLatitude == 0 && startLongitude == 0) {
-                    startLatitude = lat;
-                    startLongitude = lon;
-                    hasLeftStartArea = false;
-                    if (hasLeftStartAreaIndicator != null) {
-                        hasLeftStartAreaIndicator.setText("NO");
-                        hasLeftStartAreaIndicator.setTextColor(Color.RED);
-                    }
-                } else {
-                    float[] results = new float[1];
-                    Location.distanceBetween(startLatitude, startLongitude, lat, lon, results);
-                    float distanceInMeters = results[0];
-                    float distanceInFeet = distanceInMeters * 3.28084f;
-
-                    if (!hasLeftStartArea && distanceInFeet > 100) {
-                        hasLeftStartArea = true;
-                        if (hasLeftStartAreaIndicator != null) {
-                            hasLeftStartAreaIndicator.setText("YES");
-                            hasLeftStartAreaIndicator.setTextColor(Color.GREEN);
-                        }
-                    } else if (hasLeftStartArea && distanceInFeet < 20) {
-                        lap_trigger();
-                        hasLeftStartArea = false;
-                        if (hasLeftStartAreaIndicator != null) {
-                            hasLeftStartAreaIndicator.setText("NO");
-                            hasLeftStartAreaIndicator.setTextColor(Color.RED);
-                        }
-                    }
-                }
-            }
 
             if ((System.currentTimeMillis() - ecu_speed_timestamp) > 500) {
                 SpeedLabel.setText("Speed (GPS)");
@@ -965,9 +920,6 @@ public class MainActivity extends AppCompatActivity {
         this.row = 0;
         this.distance = 0;
         this.race_start_timestamp = System.currentTimeMillis();
-        this.startLatitude = 0;
-        this.startLongitude = 0;
-        this.hasLeftStartArea = false;
         this.data_frame.clear();
         this.data_frame_timestamps.clear();
         this.messageCounts.clear();

@@ -86,6 +86,10 @@ public class MainActivity extends AppCompatActivity {
     private double distance;
     private File current_file;
 
+    // GPS Lap Counter variables
+    private double startLatitude = 0, startLongitude = 0;
+    private boolean hasLeftStartArea = false;
+
     //all the data that we will be loggin'
     private Map<String, Object> data_frame = new ConcurrentHashMap<>();
     private Map<String, Long> data_frame_timestamps = new ConcurrentHashMap<>();
@@ -95,7 +99,7 @@ public class MainActivity extends AppCompatActivity {
     private TextView RpmNumber, RpmNumber2, SpeedLabel, SpeedNumber, SpeedNumber2, LapNumber,
             TimerLabel, TimerNumber, LapOffsetTimer, IdealStartCountdown, VoltageNumber, FuelPressure, LambdaNumber,
             CoolantTemperature, BurnOrCoast, GPSSpeed, Latitude, Longitude, IPAddress,
-            ResetLapButton, rawBluetoothData, ErrorNotif;
+            ResetLapButton, rawBluetoothData, ErrorNotif, hasLeftStartAreaIndicator;
     private ProgressBar RedlineIndicator, ThrottlePositionBar;
     private Button RecordingButton, StarterIndicator, EngineIndicator;
 
@@ -195,6 +199,7 @@ public class MainActivity extends AppCompatActivity {
         secretMultInput = findViewById(R.id.secret_mult_input);
         simulateLapButton = findViewById(R.id.simLapButton);
 
+
         SharedPreferences prefs = getSharedPreferences(LAP_PREFS_NAME, Context.MODE_PRIVATE);
 
         if (secretMultInput != null) {
@@ -240,6 +245,13 @@ public class MainActivity extends AppCompatActivity {
                 lap_timestamp = 0;
                 lap_number = 0;
                 stopRecording();
+                startLatitude = 0;
+                startLongitude = 0;
+                hasLeftStartArea = false;
+                if (hasLeftStartAreaIndicator != null) {
+                    hasLeftStartAreaIndicator.setText("NO");
+                    hasLeftStartAreaIndicator.setTextColor(Color.RED);
+                }
                 TimerLabel.setText("Press");
                 LapOffsetTimer.setText("+/- None");
                 LapOffsetTimer.setTextColor(Color.parseColor("#9C27B0"));
@@ -344,6 +356,39 @@ public class MainActivity extends AppCompatActivity {
             updateDataFrame("gps_longitude", String.format(Locale.ENGLISH, "%.4f", lon));
             GPSSpeed.setText(String.format(Locale.ENGLISH, "%.2f", gps_speed));
             updateDataFrame("gps_speed", gps_speed);
+
+            // GPS Lap Counter Logic
+            if (race_start_timestamp != 0) {
+                if (startLatitude == 0 && startLongitude == 0) {
+                    startLatitude = lat;
+                    startLongitude = lon;
+                    hasLeftStartArea = false;
+                    if (hasLeftStartAreaIndicator != null) {
+                        hasLeftStartAreaIndicator.setText("NO");
+                        hasLeftStartAreaIndicator.setTextColor(Color.RED);
+                    }
+                } else {
+                    float[] results = new float[1];
+                    Location.distanceBetween(startLatitude, startLongitude, lat, lon, results);
+                    float distanceInMeters = results[0];
+                    float distanceInFeet = distanceInMeters * 3.28084f;
+
+                    if (!hasLeftStartArea && distanceInFeet > 100) {
+                        hasLeftStartArea = true;
+                        if (hasLeftStartAreaIndicator != null) {
+                            hasLeftStartAreaIndicator.setText("YES");
+                            hasLeftStartAreaIndicator.setTextColor(Color.GREEN);
+                        }
+                    } else if (hasLeftStartArea && distanceInFeet < 20) {
+                        lap_trigger();
+                        hasLeftStartArea = false;
+                        if (hasLeftStartAreaIndicator != null) {
+                            hasLeftStartAreaIndicator.setText("NO");
+                            hasLeftStartAreaIndicator.setTextColor(Color.RED);
+                        }
+                    }
+                }
+            }
 
             if ((System.currentTimeMillis() - ecu_speed_timestamp) > 500) {
                 SpeedLabel.setText("Speed (GPS)");
@@ -773,73 +818,108 @@ public class MainActivity extends AppCompatActivity {
             currentMessageBuilder = new StringMessageBuilder();
             if (message != null) {
                 log_message_received(message.messageID);
-                switch (message.messageID) {
-                    //signal from the lap button being pressed
-                    case 0x2:
-                        if (race_start_timestamp == 0) {
-                            lap_trigger();
-                        }
-                        break;
-                    case 0x640:
-                        int rpm = message.getContentVariable(0, 16);
-                        RpmNumber.setText(String.format(Locale.ENGLISH, "%d", rpm));
-                        RpmNumber2.setText(String.format(Locale.ENGLISH, "%d", rpm));
-                        EngineIndicator.setBackgroundTintList(ColorStateList.valueOf( rpm > 1600 ? Color.GREEN :Color.RED));
-                        StarterIndicator.setBackgroundTintList(ColorStateList.valueOf( rpm > 100 && rpm < 1500 ? Color.GREEN :Color.RED));
-                        int throttlePosition = message.getContentVariable(48, 16) * 10;
-                        ThrottlePositionBar.setProgress(throttlePosition);
-                        updateDataFrame("throttle_position", String.format(Locale.ENGLISH, "%d", throttlePosition));
-                        break;
-                    case 0x641:
-                        int fuelPressure = message.getContentVariable(32, 16) / 10;
-                        if (FuelPressure != null) FuelPressure.setText(String.format(Locale.ENGLISH, "%d kPa", fuelPressure));
-                        updateDataFrame("fuel_pressure", String.format("%d", fuelPressure));
-                        int fuelInjectorTiming = message.getContentVariable(48, 8);
-                        updateDataFrame("fuel_injector_timing", String.format("%d", fuelInjectorTiming));
-                        int engineEfficiency = message.getContentVariable(56, 8);
-                        updateDataFrame("engine_efficiency", String.format("%d", engineEfficiency));
-                        break;
-                    case 0x642:
-                        int engineLoad = message.getContentVariable(16, 16);
-                        updateDataFrame("engine_load", String.format("%d", engineLoad));
-                        break;
-                    case 0x648:
-                        //get the wheel speed from the back right wheel (what it's mapped to in the ECU)
-                        double ecu_speed = (message.getContentVariable(48, 16) * 0.06213712 * secret_mult);
-                        updateDataFrame("ecu_speed", String.format("%.1f", ecu_speed));
-                        SpeedLabel.setText("Speed (ECU)");
-                        ecu_speed_timestamp = System.currentTimeMillis();
-                        handleSpeed(ecu_speed);
-                        break;
-                    case 0x649:
-                        //I have co-opted the coolant_temp label for the ECU fuel used metric, fix the labels eventually
-                        double coolant_temp = message.getContentVariable(48, 16) / 100.0;
-                        CoolantTemperature.setText(String.format(Locale.ENGLISH, "%.3f L", coolant_temp));
-                        int engineOilTemp = message.getContentVariable(8, 8) - 40;
-                        updateDataFrame("oil_temp", String.format("%d", engineOilTemp));
-                        float voltage = message.getContentVariable(40, 8) / (float) 10;
-                        VoltageNumber.setText(String.format(Locale.ENGLISH, "%.1f V", voltage));
-                        updateDataFrame("battery_voltage", String.format("%.1f", voltage));
-                        if (voltage < 10.5) {
-                            if (warningObjects[5] != null) warningObjects[5].timestamp = System.currentTimeMillis();
-                        }
-                        break;
-                    case 0x64c:
-                        for (int i = 0; i < 9 && i < warningObjects.length; i++) {
-                            if (message.getContentVariable(40 + i, 1) == 1) {
-                                if (warningObjects[i] != null) {
-                                    warningObjects[i].timestamp = System.currentTimeMillis();
+                switch (message.messageType){
+                    case 1:
+                        switch (message.messageID) {
+                            //signal from the lap button being pressed
+                            case 0x2:
+                                if (race_start_timestamp == 0) {
+                                    lap_trigger();
                                 }
-                            }
+                                break;
+                            case 0x640:
+                                int rpm = message.getContentVariable(0, 16);
+                                RpmNumber.setText(String.format(Locale.ENGLISH, "%d", rpm));
+                                RpmNumber2.setText(String.format(Locale.ENGLISH, "%d", rpm));
+                                EngineIndicator.setBackgroundTintList(ColorStateList.valueOf( rpm > 1600 ? Color.GREEN :Color.RED));
+                                StarterIndicator.setBackgroundTintList(ColorStateList.valueOf( rpm > 100 && rpm < 1500 ? Color.GREEN :Color.RED));
+                                int throttlePosition = message.getContentVariable(48, 16) * 10;
+                                ThrottlePositionBar.setProgress(throttlePosition);
+                                updateDataFrame("throttle_position", String.format(Locale.ENGLISH, "%d", throttlePosition));
+                                break;
+                            case 0x641:
+                                int fuelPressure = message.getContentVariable(32, 16) / 10;
+                                if (FuelPressure != null) FuelPressure.setText(String.format(Locale.ENGLISH, "%d kPa", fuelPressure));
+                                updateDataFrame("fuel_pressure", String.format("%d", fuelPressure));
+                                int fuelInjectorTiming = message.getContentVariable(48, 8);
+                                updateDataFrame("fuel_injector_timing", String.format("%d", fuelInjectorTiming));
+                                int engineEfficiency = message.getContentVariable(56, 8);
+                                updateDataFrame("engine_efficiency", String.format("%d", engineEfficiency));
+                                break;
+                            case 0x642:
+                                int engineLoad = message.getContentVariable(16, 16);
+                                updateDataFrame("engine_load", String.format("%d", engineLoad));
+                                break;
+                            case 0x648:
+                                //get the wheel speed from the back right wheel (what it's mapped to in the ECU)
+                                double ecu_speed = (message.getContentVariable(48, 16) * 0.06213712 * secret_mult);
+                                updateDataFrame("ecu_speed", String.format("%.1f", ecu_speed));
+                                SpeedLabel.setText("Speed (ECU)");
+                                ecu_speed_timestamp = System.currentTimeMillis();
+                                handleSpeed(ecu_speed);
+                                break;
+                            case 0x649:
+                                //I have co-opted the coolant_temp label for the ECU fuel used metric, fix the labels eventually
+                                double coolant_temp = message.getContentVariable(48, 16) / 100.0;
+                                CoolantTemperature.setText(String.format(Locale.ENGLISH, "%.3f L", coolant_temp));
+                                int engineOilTemp = message.getContentVariable(8, 8) - 40;
+                                updateDataFrame("oil_temp", String.format("%d", engineOilTemp));
+                                float voltage = message.getContentVariable(40, 8) / (float) 10;
+                                VoltageNumber.setText(String.format(Locale.ENGLISH, "%.1f V", voltage));
+                                updateDataFrame("battery_voltage", String.format("%.1f", voltage));
+                                if (voltage < 10.5) {
+                                    if (warningObjects[5] != null) warningObjects[5].timestamp = System.currentTimeMillis();
+                                }
+                                break;
+                            case 0x64c:
+                                for (int i = 0; i < 9 && i < warningObjects.length; i++) {
+                                    if (message.getContentVariable(40 + i, 1) == 1) {
+                                        if (warningObjects[i] != null) {
+                                            warningObjects[i].timestamp = System.currentTimeMillis();
+                                        }
+                                    }
+                                }
+                                break;
+                            case 0x460:
+                                if (message.getContentVariable(0, 8) == 0) {
+                                    double lambda = message.getContentVariable(8, 16) / 1000.0;
+                                    if (LambdaNumber != null) LambdaNumber.setText(String.format(Locale.ENGLISH, "%4.3f", lambda));
+                                }
+                                break;
                         }
                         break;
-                    case 0x460:
-                        if (message.getContentVariable(0, 8) == 0) {
-                            double lambda = message.getContentVariable(8, 16) / 1000.0;
-                            if (LambdaNumber != null) LambdaNumber.setText(String.format(Locale.ENGLISH, "%4.3f", lambda));
+                    case 2:
+                        switch (message.messageID) {
+
+                            // message 1: structure: data 7 - data 6 (duty cycle), data 5 - data 4 (current), data 3 - data 0 (RPMs)
+                            case 0x09: // CAN Packet Message 1: RPM, Total Current *10
+
+                                int RPM = message.getContentVariable(32, 32); // 4 byte offset, 4 byte length
+                                int current = message.getContentVariable(16, 16) / 10; // 2 byte offset, 2 byte length
+
+                                // calculate wheel speed
+                                int wheel_speed = 0; // (RPM * Tire Diameter) / Total Gear Ratio
+
+                                // write screen logic
+                                break;
+                            case 0x0F: // CAN Packet Message 3: Total Watt-Hours, Total-Regen Hours
+
+                                double regen_hrs = message.getContentVariable(0, 32) / 1000.0; // 0 byte offset, 4 byte length
+                                double watt_hrs = message.getContentVariable(32, 32) / 1000.0; // 4 byte offset, 4 byte length
+
+                                // write screen logic
+                                break;
+                            case 0x10: // CAN Packet Message 4: MOSFET Temp, Motor Temp
+
+                                double motor_temp = message.getContentVariable(32, 16) / 10.0; // presumed Celsius
+                                double MOSFET_TEMP = message.getContentVariable(48, 16) / 10.0; // presumed Celsius
+
+                                // write screen logic here
+                                break;
                         }
                         break;
                 }
+
                 handle_warnings();
             }
         } catch (Exception e) {
@@ -920,6 +1000,9 @@ public class MainActivity extends AppCompatActivity {
         this.row = 0;
         this.distance = 0;
         this.race_start_timestamp = System.currentTimeMillis();
+        this.startLatitude = 0;
+        this.startLongitude = 0;
+        this.hasLeftStartArea = false;
         this.data_frame.clear();
         this.data_frame_timestamps.clear();
         this.messageCounts.clear();
@@ -1021,6 +1104,10 @@ public class MainActivity extends AppCompatActivity {
                 case MESSAGE_TYPE:
                     if (remainingBytes == 2 && (char) b == '1') {
                         messageType = 1;
+                        remainingBytes--;
+                    }
+                    if (remainingBytes == 2 && (char) b == '2'){
+                        messageType = 2;
                         remainingBytes--;
                     }
                     if (remainingBytes == 1 && (char) b == ']') {
